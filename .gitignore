@@ -1,0 +1,30 @@
+references/
+
+# Generated build output
+/.gradle/
+/build/
+/out/
+/target/
+*.class
+
+# Runtime databases and sidecar files
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3-shm
+*.sqlite3-wal
+
+# Local attachments
+/attachments/
+/data/attachments/
+
+# Raw evaluation artifacts
+/evaluation/raw/
+/evaluations/raw/
