@@ -1,9 +1,5 @@
 # EvidenceLogger — product specification
 
-**Status:** Approved product specification for the one-week MVP. Product decisions D-01 through D-07 and the implementation stack in Section 4 were confirmed by the team. Unresolved or deferred behavior must not be treated as an implicit business rule.
-
-**Source of truth:** `references/requirements.md` contains mandatory project requirements. `references/suggestion.md` is a proposal; its extra features are included here only where explicitly selected. All evidence and cases used for development and demonstration are fictional.
-
 ## 1. Product and scope
 
 EvidenceLogger is an offline Java desktop application for a small office to record physical evidence, requests to take it from storage, handoffs, examinations, returns, and custody history. An **Evidence Custodian** controls registration and handoffs. An **Investigator** works only on assigned cases. Both use the same local workstation at different times. The product does not claim legal, police, or forensic certification.

@@ -1,6 +1,6 @@
 # EvidenceLogger domain rules
 
-**Status:** Domain decisions approved by the user on 20 Sep 2026 and updated on 22 Sep 2026. This document applies the approved product decisions D-01 through D-07 and implementation stack in `specs/product.md`. `references/requirements.md` remains mandatory. **Confirmed** means decided here or in the product specification; **Open** means no behavior has been chosen. Case closure, release from hold, and all backup and restore features remain outside the MVP.
+**Status:** Domain decisions approved by the user on 20 Sep 2026 and updated on 22 Sep 2026. This document applies the approved product decisions D-01 through D-07 and implementation stack in `specs/product.md`. **Confirmed** means decided here or in the product specification; **Open** means no behavior has been chosen. Case closure, release from hold, and all backup and restore features remain outside the MVP.
 
 ## 1. Scope and glossary
 
