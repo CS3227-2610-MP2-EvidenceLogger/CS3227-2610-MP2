@@ -1,6 +1,6 @@
 # EvidenceLogger — product specification
 
-**Status:** Draft for team review, updated for a nine-day project. The selected choices below follow the previous draft's recommendations as requested. Items marked **Proposed** still need a team decision before implementation.
+**Status:** Draft for team review, updated for a nine-day project. Product decisions D-01 through D-08 were confirmed by the team. The implementation stack in Section 4 remains **Proposed** and still needs a team decision before implementation.
 
 **Source of truth:** `references/requirements.md` contains mandatory project requirements. `references/suggestion.md` is a proposal; its extra features are included here only where explicitly selected. All evidence and cases used for development and demonstration are fictional.
 
@@ -34,21 +34,21 @@ Separate role views must be backed by service-layer authorization. Investigators
 5. The collecting Investigator adds a note and initiates return. The Custodian records inspection; the item shows either in storage or held for review.
 6. Authorized users can read ordered history. Attempts to edit or delete an old entry fail; a correction appears as a new entry.
 
-## 3. Selected decisions and remaining detail
+## 3. Confirmed decisions and remaining open details
 
-The selected column incorporates the recommendations from the previous unresolved-decision list. The last column identifies details that the recommendation did not settle. Those details are **open**, not implicit business rules.
+The team confirmed the proposed solutions for D-01 through D-08. The last column now contains only details that those decisions did not settle. Those details remain **open** and must not be treated as implicit business rules.
 
-| ID | Selected decision | Open detail or proposed simple solution |
+| ID | Confirmed decision | Remaining open detail |
 | --- | --- | --- |
-| D-01 | **Proposed:** Seed fictional demonstration accounts when creating an empty local database; defer account administration. | Recommend one Custodian and at least two Investigators so case access can be tested. Store salted password hashes, never plaintext. Document demo credentials in the User Guide and label them demo-only. The team must confirm this approach before sign-in is implemented. |
-| D-02 | Investigators see only assigned cases. | Decide whether assignment can change after case creation. **Proposed:** allow the Custodian to change an assignment and record the change in history. |
-| D-03 | Evidence requires a case, short description, and Custodian-selected location from a small managed list; the application generates the reference. | **Proposed:** let the Custodian add locations but not rename or delete locations already used. Exact reference format and any extra evidence fields remain open. |
-| D-04 | Approval and physical handoff are separate; collection includes Investigator acknowledgment. | Decide cancellation, expiry, and competing-request rules. **Proposed for nine days:** no automatic expiry; allow withdrawal only while pending; permit at most one pending or approved request per item. |
-| D-05 | Notes attach to a specific checkout; corrections are appended. | **Proposed:** require note text only; make notes visible to the Custodian and Investigators assigned to the case. |
-| D-06 | Every return requires Custodian inspection. Clean returns go to storage; problematic returns are held for review. | **Proposed:** two inspection outcomes, `STORED` and `HELD_FOR_REVIEW`, with a required comment for the latter. Handling a held item after review is outside this MVP. |
-| D-07 | History is append-only; errors are corrected with an entry containing actor, time, and reason. | **Proposed:** include request rejection in the same case/evidence history view. Define the minimum fields for each event before coding. |
-| D-08 | The second-priority backup contains database records only because attachments are excluded. Use guarded in-app restore if feasible. | **Proposed:** Custodian chooses a local destination; restore validates a selected backup and requires confirmation before replacing the local database. Keep the prior database recoverable if replacement fails. Exact interruption recovery needs a technical test. |
-| D-09 | Investigate cross-OS JavaFX packaging early and smoke-test Windows, macOS, and Linux. | The Gradle build must produce the required single cross-OS JAR with JavaFX libraries included. Treat this as an early release gate, not an assumption that a normal JavaFX build already meets it. |
+| D-01 | When creating an empty local database, seed one fictional Custodian account and at least two fictional Investigator accounts so assigned-case access can be tested. Store salted password hashes, never plaintext. Document the credentials in the User Guide and label them demo-only. Account administration is outside this MVP. | None. |
+| D-02 | Investigators see only assigned cases. The Custodian may change a case assignment after creation, and the application records the assignment change in history. | None. |
+| D-03 | Evidence requires a case, short description, and Custodian-selected location from a small managed list; the application generates the reference. The Custodian may add locations but may not rename or delete a location after it has been used. | The exact generated-reference format and any additional evidence fields remain open. |
+| D-04 | Approval and physical handoff are separate; collection includes Investigator acknowledgment. Requests do not expire automatically. An Investigator may withdraw a request only while it is pending. Each evidence item may have at most one pending or approved request. | None. |
+| D-05 | Notes attach to a specific checkout, require only note text, and are visible to the Custodian and Investigators assigned to the case. Corrections are appended. | None. |
+| D-06 | Every return requires Custodian inspection. The only inspection outcomes are `STORED` and `HELD_FOR_REVIEW`; `HELD_FOR_REVIEW` requires a comment. Handling a held item after review is outside this MVP. | None. |
+| D-07 | History is append-only; errors are corrected with an entry containing actor, time, and reason. Request rejection appears in the same case/evidence history view. | Define the minimum fields for each event before coding. |
+| D-08 | The second-priority backup contains database records only because attachments are excluded. The Custodian chooses a local backup destination. In-app restore, if included, validates the selected backup and requires confirmation before replacing the local database; the prior database must remain recoverable if replacement fails. | Exact interruption-recovery behavior requires a technical test. |
+| D-09 | Investigate cross-OS JavaFX packaging early and smoke-test Windows, macOS, and Linux. The Gradle build must produce the required single cross-OS JAR with JavaFX libraries included. Treat this as an early release gate, not an assumption that a normal JavaFX build already meets it. | None. |
 
 ## 4. Recommended implementation stack
 
