@@ -1,12 +1,12 @@
 # EvidenceLogger domain rules
 
-**Status:** Domain decisions approved by the user on 20 Sep 2026 and synchronized on 21 Sep 2026 with product decisions D-01 through D-08. This document applies `specs/product.md` and the user's decisions below; it does not approve unrelated proposals in the product draft. `references/requirements.md` remains mandatory. **Confirmed** means decided here or in the product specification; **Open** means no behavior has been chosen. Case closure and release from hold remain outside the MVP.
+**Status:** Domain decisions approved by the user on 20 Sep 2026 and updated on 22 Sep 2026. This document applies the approved product decisions D-01 through D-07 and implementation stack in `specs/product.md`. `references/requirements.md` remains mandatory. **Confirmed** means decided here or in the product specification; **Open** means no behavior has been chosen. Case closure, release from hold, and all backup and restore features remain outside the MVP.
 
 ## 1. Scope and glossary
 
 **Confirmed:** The MVP records fictional physical evidence in an offline, single-workstation Java desktop application. The two roles are Evidence Custodian and Investigator. The core flow is registration, checkout request, decision, handoff, collection acknowledgment, examination notes, return initiation, Custodian inspection, and storage or hold for review. Case closure, disposal, account administration, and handling a held item after review are outside the MVP.
 
-**Confirmed by the user:** The Custodian retains physical custody after recording handoff until the Investigator acknowledges receipt; an evidence item may have at most one pending or approved checkout request at a time; case closure and release of evidence held for review remain outside the MVP. The user also approved the eight recommendations formerly listed as DR-01 through DR-08. They are recorded as decisions in section 9. Product decisions D-01 through D-08 are confirmed in `specs/product.md` and reflected here where they affect domain behavior.
+**Confirmed by the user:** The Custodian retains physical custody after recording handoff until the Investigator acknowledges receipt; an evidence item may have at most one pending or approved checkout request at a time; a fresh request is permitted whenever the evidence is `IN_STORAGE` and has no pending or approved request; case closure, release of evidence held for review, and backup and restore remain outside the MVP. The user also approved the eight recommendations formerly listed as DR-01 through DR-08. They are recorded as decisions in section 8. Product decisions D-01 through D-07 are confirmed in `specs/product.md` and reflected here where they affect domain behavior.
 
 **Confirmed setup rule:** Creating an empty local database seeds one fictional Custodian account and at least two fictional Investigator accounts. Their passwords are stored only as salted hashes, their credentials are documented as demo-only in the User Guide, and account administration remains outside the MVP.
 
@@ -32,7 +32,7 @@
 | User | Identity, role, sign-in credential; actor for actions. An empty database is seeded with one fictional Custodian and at least two fictional Investigators using salted password hashes. | **Confirmed**; account administration is outside the MVP. |
 | Case | Generated identifier, nonblank title, and zero or more assigned Investigators after creation. Creation includes one initial assignment; others may be added later. | **Confirmed**. |
 | CaseAssignment | Case–Investigator association used by authorization; changes are audited. | **Confirmed** domain relationship. |
-| EvidenceItem | Exactly one case, unique generated reference, nonblank short description, chosen location, custody state. | **Confirmed**. |
+| EvidenceItem | Exactly one case, unique generated reference, nonblank short description, chosen location, and custody state. Case, description, and location are the only registration inputs; the reference and state are system-managed. | **Confirmed**. |
 | StorageLocation | Unique nonblank name maintained by the Custodian; used locations remain unchanged. | **Confirmed**. |
 | CheckoutRequest | One evidence item, requesting Investigator, purpose, expected return time, decision/status. | **Confirmed**. |
 | Handoff/Checkout | Custodian who records handoff, requesting Investigator who acknowledges, their times, item and approved request; notes and return attach to the checkout. | **Confirmed** domain data; storage schema remains an implementation choice. |
@@ -51,8 +51,8 @@
 | View/search cases and evidence | C for work under Custodian control | C for assigned cases only |
 | Register evidence; choose location | C | — |
 | Add a storage location | C | — |
-| Relocate evidence | ? | — |
-| Submit checkout request; view its status | ? for submitting; C for viewing | C for assigned case |
+| Relocate evidence | — | — |
+| Submit checkout request; view its status | — for submitting; C for viewing | C for assigned case |
 | Withdraw a pending request | — | C, own request only |
 | Cancel an uncollected approval or reverse an unacknowledged handoff | C, with reason | — |
 | Approve or reject a request | C | — |
@@ -65,7 +65,7 @@
 | Edit/delete an old history entry | — | — |
 | Append a documentary custody-history correction | C | — |
 | Append a correction to own examination note | — | C for assigned case |
-| Close a case; release a held item; dispose of evidence | Outside MVP | Outside MVP |
+| Close a case; release a held item; dispose of evidence | — | — |
 
 **Confirmed assignment restriction:** Every Investigator read, search, and write involving a case or its evidence requires a current assignment, including direct service calls. Request approval does not grant the Investigator access to an otherwise unassigned case. An Investigator cannot approve their own or anyone else's request.
 
@@ -86,7 +86,7 @@ PENDING ──approve──> APPROVED ──collection acknowledged──> CONSU
 
 - **Confirmed:** A new request is pending; the Custodian may approve or reject it. The requester may withdraw it only while pending. A Custodian may cancel an approved request before acknowledgment, with a reason. There is no automatic expiry.
 - **Confirmed:** `CONSUMED` means an approved request produced one acknowledged checkout. It remains linked after return; return does not reopen it. `REJECTED`, `WITHDRAWN`, `CANCELLED`, and `CONSUMED` are terminal. Rejected and cancelled requests cannot be collected.
-- **Open:** Whether and when a fresh request may follow a terminal request for the same item. The one-active-request rule is settled, but resubmission timing is not.
+- **Confirmed:** A fresh request may follow any terminal request whenever the evidence is `IN_STORAGE` and no `PENDING` or `APPROVED` request exists for it. A consumed request therefore permits a fresh request only after the checkout has been inspected and the item has returned to `IN_STORAGE`.
 
 ### Evidence-custody state
 
@@ -118,7 +118,7 @@ The location field names the assigned storage location; it is not proof of physi
 | Remove case assignment | Custodian | Assignment exists; that Investigator has no pending/approved request or uninspected checkout for the case. | Investigator loses case access, including past notes/history. | `CASE_UNASSIGNED` |
 | Add storage location | Custodian | Nonblank name not already in the location list. | Location becomes selectable. | `LOCATION_ADDED` |
 | Register evidence | Custodian | Case exists; description supplied; selected location exists. | New item `E=IN_STORAGE`; generated unique reference. | `EVIDENCE_REGISTERED` |
-| Submit request | Assigned Investigator | Item belongs to assigned case; `E=IN_STORAGE`; nonblank purpose; expected return later than submission; no other `PENDING` or `APPROVED` request for the item. Resubmission after a terminal request is **Open**. | New `R=PENDING`; `E` unchanged. | `REQUEST_SUBMITTED` |
+| Submit request | Assigned Investigator | Item belongs to assigned case; `E=IN_STORAGE`; nonblank purpose; expected return later than submission; no other `PENDING` or `APPROVED` request for the item. A prior terminal request does not block submission. | New `R=PENDING`; `E` unchanged. | `REQUEST_SUBMITTED` |
 | Withdraw pending request | Requesting Investigator | `R=PENDING`; requester still assigned. | `R=WITHDRAWN`; `E` unchanged. | `REQUEST_WITHDRAWN` |
 | Approve request | Custodian | `R=PENDING`; `E=IN_STORAGE`; requester still eligible; no competing active request. | `R=APPROVED`; `E=IN_STORAGE`. | `REQUEST_APPROVED` |
 | Reject request | Custodian | `R=PENDING`. | `R=REJECTED`; `E` unchanged. | `REQUEST_REJECTED` |
@@ -142,7 +142,7 @@ An approved request that is never collected remains approved until the Custodian
 - **Confirmed:** A repeated approval, rejection, handoff, acknowledgment, return initiation, or inspection against an already-advanced record fails as an invalid transition and creates no duplicate event. A retry may read the current result, but it must not record a second physical action. A new checkout requires a new approved request and handoff after the item returns to storage.
 - **Confirmed:** At most one `PENDING` or `APPROVED` request may exist per evidence item, including when the same Investigator submits again. A competing request must not be accepted. The item cannot be collected through another request while a handoff or checkout is active.
 - **Confirmed:** `HANDOFF_AWAITING_ACK`, `CHECKED_OUT`, and `HELD_FOR_REVIEW` block new requests. The single-active-request rule is enforced atomically; the losing action receives a clear conflict result. Approved requests may be cancelled before acknowledgment with a reason, and an unacknowledged handoff may be reversed with a reason.
-- **Open:** Whether a new request may follow a terminal request after the item is back in storage. The one-active-request rule itself is decided.
+- **Confirmed:** A new request may follow a terminal request as soon as the item is `IN_STORAGE` and has no `PENDING` or `APPROVED` request. Terminal request records remain unchanged in history.
 
 ## 6. Closed cases, compromised evidence, and amendments
 
@@ -178,25 +178,17 @@ An approved request that is never collected remains approved until the Custodian
 8. **Confirmed audit minimum:** Each event has an immutable, stable ID, type, signed-in actor ID and role, timestamp, and relevant case/evidence/request/checkout IDs. Include prior and resulting state for a state change, a reason/comment where required, and a target ID for a correction. Show history by timestamp with event ID as a tie-breaker.
 9. **Confirmed:** Database constraints and conditional state changes protect uniqueness and workflow preconditions. A conflict or storage failure is shown clearly and leaves the prior state intact.
 
-## 8. Backup and restore boundary
-
-**Confirmed:** Custodian-triggered local backup and guarded in-app restore are second-priority release features. A backup contains database records only; attachments are outside the MVP. The Custodian chooses the local backup destination.
-
-**Confirmed if restore is included:** Before replacing the live local database, the application validates the selected backup and requires explicit confirmation. If replacement fails, the prior database must remain recoverable. An invalid backup must leave live data unchanged.
-
-**Open technical detail:** Exact recovery behavior for an interruption during replacement must be established by a technical test before restore is included in the release. Automatic backup is outside the MVP.
-
-## 9. Approved domain decisions
+## 8. Approved domain decisions
 
 | ID | Approved rule |
 | --- | --- |
 | DR-01 | Multiple Investigators may be assigned; Custodian assignment changes are audited; removal is blocked during that Investigator's active request or checkout. |
 | DR-02 | The collector is the requester; the Custodian may reverse an unacknowledged handoff with a reason and audit event. |
-| DR-03 | No automatic request expiry; requester may withdraw while pending; Custodian may cancel an uncollected approval with a reason. |
+| DR-03 | No automatic request expiry; requester may withdraw while pending; Custodian may cancel an uncollected approval with a reason. A fresh request is permitted whenever the evidence is `IN_STORAGE` and has no pending or approved request. |
 | DR-04 | Custodian records physical receipt at inspection; new notes freeze when return is initiated; a reasoned Custodian inspection handles an unplanned return without initiation. |
 | DR-05 | A problematic return requires a hold comment; incident handling and release from hold are deferred. |
 | DR-06 | Custodian corrects documentary custody history; note author corrects their own notes; operational state repair needs a separate approved transition. |
-| DR-07 | Use the minimum fields and validation stated here, preserve used locations, and give audit events stable IDs. |
+| DR-07 | Evidence registration uses only case, short description, and selected location; the system generates the stable unique reference. Preserve used locations and give audit events stable IDs. |
 | DR-08 | Closure is outside the MVP; if later added, resolve active requests/checkouts first, block new operations, and preserve history and corrections. |
 
-These domain decisions and product decisions D-01 through D-08 are approved. Other items still marked **Proposed** or **Open** in `specs/product.md` remain unresolved unless this document explicitly records an earlier user-approved domain decision.
+These domain decisions, product decisions D-01 through D-07, and the implementation stack are approved. Behavior explicitly marked **Open** remains unresolved unless this document records an approved decision.
