@@ -7,11 +7,6 @@
 
 - Use one agent. Do not delegate work to sub-agents.
 
-- Treat `references/requirements.md` as mandatory requirements.
-
-- Treat `references/suggestion.md` as a proposal, not an approved
-  final specification.
-
 - During specification work, distinguish confirmed requirements,
   proposed decisions, and open questions.
 
@@ -20,8 +15,8 @@
   clarification. Continue independent work where possible.
 
 - During implementation, read the relevant approved specifications
-  and existing code first. Implement only the assigned task and
-  avoid unrelated refactoring.
+  in `specs/` and existing code first. Implement only the assigned
+  task and avoid unrelated refactoring.
 
 - For implementation requests, make the required code changes;
   do not stop at a plan unless planning was explicitly requested
