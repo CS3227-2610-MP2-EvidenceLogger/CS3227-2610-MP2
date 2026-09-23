@@ -39,6 +39,7 @@ public record AuditEventDraft(
         Optional<AuditEventId> correctedEventId,
         Optional<ExaminationNoteId> correctedNoteId) {
 
+    /** Validates that optional event fields are represented explicitly. */
     public AuditEventDraft {
         Objects.requireNonNull(type, "type");
         Objects.requireNonNull(caseId, "caseId");

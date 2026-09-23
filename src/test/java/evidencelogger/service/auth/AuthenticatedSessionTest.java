@@ -26,11 +26,11 @@ class AuthenticatedSessionTest {
     void sessionRejectsMissingIdentityData() {
         UserId userId = new UserId(UUID.randomUUID());
 
-        assertThrows(NullPointerException.class,
-                () -> new AuthenticatedSession(null, Role.INVESTIGATOR, "Demo Investigator"));
-        assertThrows(NullPointerException.class,
-                () -> new AuthenticatedSession(userId, null, "Demo Investigator"));
-        assertThrows(NullPointerException.class,
-                () -> new AuthenticatedSession(userId, Role.INVESTIGATOR, null));
+        assertThrows(NullPointerException.class, () ->
+                new AuthenticatedSession(null, Role.INVESTIGATOR, "Demo Investigator"));
+        assertThrows(NullPointerException.class, () ->
+                new AuthenticatedSession(userId, null, "Demo Investigator"));
+        assertThrows(NullPointerException.class, () ->
+                new AuthenticatedSession(userId, Role.INVESTIGATOR, null));
     }
 }

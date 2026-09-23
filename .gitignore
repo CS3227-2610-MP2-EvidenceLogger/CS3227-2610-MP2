@@ -34,5 +34,3 @@ references/
 *.iml
 /.vscode/
 
-# Local diagnostic logs
-/logs/

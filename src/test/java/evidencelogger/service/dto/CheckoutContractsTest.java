@@ -28,12 +28,12 @@ class CheckoutContractsTest {
     void submitRequestRejectsMissingRequiredInput() {
         EvidenceId evidenceId = new EvidenceId(UUID.randomUUID());
 
-        assertThrows(NullPointerException.class,
-                () -> new CheckoutCommands.SubmitRequest(null, "Review item", NOW));
-        assertThrows(NullPointerException.class,
-                () -> new CheckoutCommands.SubmitRequest(evidenceId, null, NOW));
-        assertThrows(NullPointerException.class,
-                () -> new CheckoutCommands.SubmitRequest(evidenceId, "Review item", null));
+        assertThrows(NullPointerException.class, () ->
+                new CheckoutCommands.SubmitRequest(null, "Review item", NOW));
+        assertThrows(NullPointerException.class, () ->
+                new CheckoutCommands.SubmitRequest(evidenceId, null, NOW));
+        assertThrows(NullPointerException.class, () ->
+                new CheckoutCommands.SubmitRequest(evidenceId, "Review item", null));
     }
 
     @Test
@@ -53,20 +53,20 @@ class CheckoutContractsTest {
         CheckoutId checkoutId = new CheckoutId(UUID.randomUUID());
         ExaminationNoteId noteId = new ExaminationNoteId(UUID.randomUUID());
 
-        assertThrows(IllegalArgumentException.class,
-                () -> new CheckoutCommands.SubmitRequest(evidenceId, "  ", NOW));
-        assertThrows(IllegalArgumentException.class,
-                () -> new CheckoutCommands.CancelApprovedRequest(requestId, "\t"));
-        assertThrows(IllegalArgumentException.class,
-                () -> new CheckoutCommands.ReverseHandoff(handoffId, "\n"));
-        assertThrows(IllegalArgumentException.class,
-                () -> new CheckoutCommands.AddExaminationNote(checkoutId, "  "));
-        assertThrows(IllegalArgumentException.class,
-                () -> new CheckoutCommands.CorrectExaminationNote(noteId, "", "Reason"));
-        assertThrows(IllegalArgumentException.class,
-                () -> new CheckoutCommands.CorrectExaminationNote(noteId, "Correction", "  "));
-        assertThrows(IllegalArgumentException.class,
-                () -> new CheckoutCommands.InspectUnplannedReturn(
+        assertThrows(IllegalArgumentException.class, () ->
+                new CheckoutCommands.SubmitRequest(evidenceId, "  ", NOW));
+        assertThrows(IllegalArgumentException.class, () ->
+                new CheckoutCommands.CancelApprovedRequest(requestId, "\t"));
+        assertThrows(IllegalArgumentException.class, () ->
+                new CheckoutCommands.ReverseHandoff(handoffId, "\n"));
+        assertThrows(IllegalArgumentException.class, () ->
+                new CheckoutCommands.AddExaminationNote(checkoutId, "  "));
+        assertThrows(IllegalArgumentException.class, () ->
+                new CheckoutCommands.CorrectExaminationNote(noteId, "", "Reason"));
+        assertThrows(IllegalArgumentException.class, () ->
+                new CheckoutCommands.CorrectExaminationNote(noteId, "Correction", "  "));
+        assertThrows(IllegalArgumentException.class, () ->
+                new CheckoutCommands.InspectUnplannedReturn(
                         checkoutId, ReturnInspectionOutcome.STORED, "  ", Optional.empty()));
     }
 
@@ -74,14 +74,14 @@ class CheckoutContractsTest {
     void heldInspectionRequiresNonBlankComment() {
         CheckoutId checkoutId = new CheckoutId(UUID.randomUUID());
 
-        assertThrows(IllegalArgumentException.class,
-                () -> new CheckoutCommands.InspectReturn(
+        assertThrows(IllegalArgumentException.class, () ->
+                new CheckoutCommands.InspectReturn(
                         checkoutId, ReturnInspectionOutcome.HELD_FOR_REVIEW, Optional.empty()));
-        assertThrows(IllegalArgumentException.class,
-                () -> new CheckoutCommands.InspectReturn(
+        assertThrows(IllegalArgumentException.class, () ->
+                new CheckoutCommands.InspectReturn(
                         checkoutId, ReturnInspectionOutcome.HELD_FOR_REVIEW, Optional.of("  ")));
-        assertThrows(IllegalArgumentException.class,
-                () -> new CheckoutCommands.InspectUnplannedReturn(
+        assertThrows(IllegalArgumentException.class, () ->
+                new CheckoutCommands.InspectUnplannedReturn(
                         checkoutId,
                         ReturnInspectionOutcome.HELD_FOR_REVIEW,
                         "Unexpected delivery",

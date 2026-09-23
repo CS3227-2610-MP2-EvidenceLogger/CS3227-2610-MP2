@@ -20,6 +20,7 @@ public final class CheckoutViews {
     private CheckoutViews() {
     }
 
+    /** Read model for a checkout request and its current workflow state. */
     public record Request(
             CheckoutRequestId requestId,
             EvidenceId evidenceId,
@@ -35,6 +36,7 @@ public final class CheckoutViews {
             Instant submittedAt,
             Optional<HandoffId> handoffId,
             Optional<CheckoutId> checkoutId) {
+        /** Validates that all request-view fields are present. */
         public Request {
             Objects.requireNonNull(requestId, "requestId");
             Objects.requireNonNull(evidenceId, "evidenceId");
@@ -53,6 +55,7 @@ public final class CheckoutViews {
         }
     }
 
+    /** Read model for an acknowledged evidence checkout. */
     public record Checkout(
             CheckoutId checkoutId,
             CheckoutRequestId requestId,
@@ -66,6 +69,7 @@ public final class CheckoutViews {
             Optional<Instant> returnInitiatedAt,
             Optional<Instant> completedAt,
             EvidenceCustodyState evidenceState) {
+        /** Validates that all checkout-view fields are present. */
         public Checkout {
             Objects.requireNonNull(checkoutId, "checkoutId");
             Objects.requireNonNull(requestId, "requestId");
@@ -82,6 +86,7 @@ public final class CheckoutViews {
         }
     }
 
+    /** Read model for an immutable examination note and its corrections. */
     public record ExaminationNote(
             ExaminationNoteId noteId,
             CheckoutId checkoutId,
@@ -90,6 +95,7 @@ public final class CheckoutViews {
             String text,
             Instant createdAt,
             List<NoteCorrection> corrections) {
+        /** Validates the note fields and defensively copies its corrections. */
         public ExaminationNote {
             Objects.requireNonNull(noteId, "noteId");
             Objects.requireNonNull(checkoutId, "checkoutId");
@@ -101,12 +107,14 @@ public final class CheckoutViews {
         }
     }
 
+    /** Read model for an append-only correction to an examination note. */
     public record NoteCorrection(
             UserId authorId,
             String authorDisplayName,
             String correctionText,
             String reason,
             Instant createdAt) {
+        /** Validates that all note-correction fields are present. */
         public NoteCorrection {
             Objects.requireNonNull(authorId, "authorId");
             Objects.requireNonNull(authorDisplayName, "authorDisplayName");

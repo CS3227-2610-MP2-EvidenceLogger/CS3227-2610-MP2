@@ -24,7 +24,6 @@
 - Avoid unrelated refactoring.
 - Add tests for behaviour changes.
 - Run relevant tests after every logical change.
-- Run `./gradlew check` before declaring a task complete.
 - Add or update automated tests for changed application behavior.
   Run the relevant available checks before declaring completion.
 - Report actual verification results, including failed or skipped
@@ -42,7 +41,7 @@
   clarification. Continue independent work where possible.
 
 ## Testing
-
+- Ensure `./gradlew clean check` passes with no errors before declaring a task complete.
 
 ## Reflection / logging
 - At the end of every substantial agent-assisted task (in a chat, not just in a prompt),
