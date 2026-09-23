@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - markbind
 
 jobs:
   build_and_deploy:
