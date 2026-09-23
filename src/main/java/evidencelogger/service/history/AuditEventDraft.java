@@ -13,6 +13,8 @@ import evidencelogger.domain.EvidenceCustodyState;
 import evidencelogger.domain.EvidenceId;
 import evidencelogger.domain.ExaminationNoteId;
 import evidencelogger.domain.HandoffId;
+import evidencelogger.domain.StorageLocationId;
+import evidencelogger.domain.UserId;
 
 /**
  * Domain event data supplied by a service. The writer supplies the event ID,
@@ -25,11 +27,15 @@ public record AuditEventDraft(
         Optional<CheckoutRequestId> requestId,
         Optional<HandoffId> handoffId,
         Optional<CheckoutId> checkoutId,
+        Optional<UserId> assignedInvestigatorId,
+        Optional<StorageLocationId> storageLocationId,
         Optional<CheckoutRequestStatus> previousRequestStatus,
         Optional<CheckoutRequestStatus> resultingRequestStatus,
         Optional<EvidenceCustodyState> previousCustodyState,
         Optional<EvidenceCustodyState> resultingCustodyState,
-        Optional<String> reasonOrComment,
+        Optional<String> reason,
+        Optional<String> comment,
+        Optional<String> correctionText,
         Optional<AuditEventId> correctedEventId,
         Optional<ExaminationNoteId> correctedNoteId) {
 
@@ -40,11 +46,15 @@ public record AuditEventDraft(
         Objects.requireNonNull(requestId, "requestId");
         Objects.requireNonNull(handoffId, "handoffId");
         Objects.requireNonNull(checkoutId, "checkoutId");
+        Objects.requireNonNull(assignedInvestigatorId, "assignedInvestigatorId");
+        Objects.requireNonNull(storageLocationId, "storageLocationId");
         Objects.requireNonNull(previousRequestStatus, "previousRequestStatus");
         Objects.requireNonNull(resultingRequestStatus, "resultingRequestStatus");
         Objects.requireNonNull(previousCustodyState, "previousCustodyState");
         Objects.requireNonNull(resultingCustodyState, "resultingCustodyState");
-        Objects.requireNonNull(reasonOrComment, "reasonOrComment");
+        Objects.requireNonNull(reason, "reason");
+        Objects.requireNonNull(comment, "comment");
+        Objects.requireNonNull(correctionText, "correctionText");
         Objects.requireNonNull(correctedEventId, "correctedEventId");
         Objects.requireNonNull(correctedNoteId, "correctedNoteId");
     }

@@ -1,8 +1,14 @@
 package evidencelogger.service.history;
 
+import java.sql.Connection;
+
 import evidencelogger.domain.AuditEventId;
 
-/** Appends immutable audit events inside the caller's active transaction. */
+/** Appends immutable audit events using the caller's active transaction. */
 public interface AuditEventWriter {
-    AuditEventId append(AuditEventDraft event);
+    /**
+     * Appends an event without committing, rolling back, or closing the
+     * runner-owned connection.
+     */
+    AuditEventId append(Connection connection, AuditEventDraft event);
 }
