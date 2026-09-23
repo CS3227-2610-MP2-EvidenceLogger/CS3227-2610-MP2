@@ -1,12 +1,12 @@
 # EvidenceLogger domain rules
 
-**Status:** Domain decisions approved by the user on 20 Sep 2026 and updated on 22 Sep 2026. This document applies the approved product decisions D-01 through D-07 and implementation stack in `specs/product.md`. **Confirmed** means decided here or in the product specification; **Open** means no behavior has been chosen. Case closure, release from hold, and all backup and restore features remain outside the MVP.
+**Status:** Domain decisions approved by the user on 20 Sep 2026 and updated on 22 Sep 2026. This document applies the approved product decisions D-01 through D-07 and implementation stack in `specs/product.md`. **Confirmed** means decided here or in the product specification; **Open** means no behavior has been chosen. Case closure and all backup and restore features remain outside the MVP.
 
 ## 1. Scope and glossary
 
-**Confirmed:** The MVP records fictional physical evidence in an offline, single-workstation Java desktop application. The two roles are Evidence Custodian and Investigator. The core flow is registration, checkout request, decision, handoff, collection acknowledgment, examination notes, return initiation, Custodian inspection, and storage or hold for review. Case closure, disposal, account administration, and handling a held item after review are outside the MVP.
+**Confirmed:** The MVP records fictional physical evidence in an offline, single-workstation Java desktop application. The two roles are Evidence Custodian and Investigator. The core flow is registration, checkout request, decision, handoff, collection acknowledgment, examination notes, return initiation, Custodian inspection, and storage. Case closure, disposal, and account administration are outside the MVP.
 
-**Confirmed by the user:** The Custodian retains physical custody after recording handoff until the Investigator acknowledges receipt; an evidence item may have at most one pending or approved checkout request at a time; a fresh request is permitted whenever the evidence is `IN_STORAGE` and has no pending or approved request; case closure, release of evidence held for review, and backup and restore remain outside the MVP. The user also approved the eight recommendations formerly listed as DR-01 through DR-08. They are recorded as decisions in section 8. Product decisions D-01 through D-07 are confirmed in `specs/product.md` and reflected here where they affect domain behavior.
+**Confirmed by the user:** The Custodian retains physical custody after recording handoff until the Investigator acknowledges receipt; an evidence item may have at most one pending or approved checkout request at a time; a fresh request is permitted whenever the evidence is `IN_STORAGE` and has no pending or approved request; case closure and backup and restore remain outside the MVP. The user also approved the eight recommendations formerly listed as DR-01 through DR-08. They are recorded as decisions in section 8. Product decisions D-01 through D-07 are confirmed in `specs/product.md` and reflected here where they affect domain behavior.
 
 **Confirmed setup rule:** Creating an empty local database seeds one fictional Custodian account and at least two fictional Investigator accounts. Their passwords are stored only as salted hashes, their credentials are documented as demo-only in the User Guide, and account administration remains outside the MVP.
 
@@ -20,8 +20,6 @@
 | Handoff | The Custodian's record of offering an approved item for collection. The Custodian retains physical custody until the Investigator acknowledges receipt; only then is the item checked out. **Confirmed.** |
 | Checkout | The period of collection associated with an acknowledged handoff. Examination notes belong to this specific checkout. **Confirmed.** The storage schema may represent this as a separate record. |
 | Return initiation | The collecting Investigator's indication that a checkout is being returned. Notes freeze then. The Custodian records physical receipt at inspection. **Confirmed.** |
-| Held for review | The result of a problematic return inspection, with a required comment. It is unavailable for another checkout; release is outside the MVP. **Confirmed.** |
-| Compromised evidence | An integrity concern described in a hold comment, not a separate MVP state. Classification and a wider incident workflow are deferred. **Confirmed** scope. |
 | Amendment/correction | A new, reasoned record linked to an earlier entry or note. The original remains unchanged. Custodians correct documentary custody history; note authors correct their own notes. **Confirmed.** |
 | Audit event/history entry | An append-only record of a domain action with stable ID, actor, time, type, and subject links. **Confirmed.** |
 
@@ -59,13 +57,13 @@
 | Record physical handoff | C | — |
 | Acknowledge collection | — | C, collecting Investigator |
 | Add note to checkout; initiate return | — | C, collecting Investigator |
-| Inspect return; store or hold | C | — |
+| Inspect return; store | C | — |
 | Record and inspect an unplanned return | C, with reason | — |
 | Read custody history | C | C for assigned cases |
 | Edit/delete an old history entry | — | — |
 | Append a documentary custody-history correction | C | — |
 | Append a correction to own examination note | — | C for assigned case |
-| Close a case; release a held item; dispose of evidence | — | — |
+| Close a case; dispose of evidence | — | — |
 
 **Confirmed assignment restriction:** Every Investigator read, search, and write involving a case or its evidence requires a current assignment, including direct service calls. Request approval does not grant the Investigator access to an otherwise unassigned case. An Investigator cannot approve their own or anyone else's request.
 
@@ -92,17 +90,15 @@ PENDING ──approve──> APPROVED ──collection acknowledged──> CONSU
 
 ```text
 IN_STORAGE ──handoff recorded──> HANDOFF_AWAITING_ACK ──acknowledged──> CHECKED_OUT
-     ▲                                                              │
-     │                                            return initiated: │
-     │                                            remains unavailable
-     └──────────────clean return inspected─────────────────────────┤
-                                                     problematic    └──> HELD_FOR_REVIEW
-                                                     return inspected
+     ▲                                                                      │
+     │                                                              return initiated
+     │                                                                      |
+     └──────────────return confirmed───────────── HANDIN_AWAITING_ACK <─────┤
 ```
 
-- **Confirmed:** Approval leaves evidence in storage. Only handoff plus Investigator acknowledgment makes it checked out. A checked-out item cannot be checked out again. Every return requires Custodian inspection before the item is available in storage. A problematic return is held for review.
+- **Confirmed:** Approval leaves evidence in storage. Only handoff plus Investigator acknowledgment makes it checked out. A checked-out item cannot be checked out again. Every return requires Custodian inspection before the item is available in storage.
 - **Confirmed:** The Custodian retains physical custody during `HANDOFF_AWAITING_ACK`; it is unavailable for another handoff. The Custodian may reverse an unacknowledged handoff with a reason, returning the item to `IN_STORAGE` and cancelling the request. The handoff record remains in history.
-- **Confirmed:** Return initiation stops new examination notes and leaves the item `CHECKED_OUT` until the Custodian physically receives and inspects it. Corrections to earlier notes may still be appended. A Custodian may record and inspect an unplanned return without prior initiation, with a reason. A clean result goes to `IN_STORAGE`; a problematic result goes to `HELD_FOR_REVIEW`, unavailable for a new request or collection. Release from hold is outside the MVP.
+- **Confirmed:** Return initiation stops new examination notes and leaves the item `HANDIN_AWAITING_ACK` until the Custodian physically receives and inspects it and confirms the return to become `IN_STORAGE`. Corrections to earlier notes may still be appended.
 - **Open:** Handling damage, loss, or another integrity concern discovered before the item can be physically returned is deferred to an incident workflow.
 
 The location field names the assigned storage location; it is not proof of physical possession during handoff, checkout, or return. Actual-location tracking is outside this MVP.
@@ -127,10 +123,9 @@ The location field names the assigned storage location; it is not proof of physi
 | Reverse unacknowledged handoff | Custodian | Matching handoff exists; `R=APPROVED`; `E=HANDOFF_AWAITING_ACK`; nonblank reason. | `R=CANCELLED`; `E=IN_STORAGE`; original handoff remains in history. | `HANDOFF_REVERSED` |
 | Acknowledge collection | Requesting Investigator | Still assigned; matching recorded handoff; `R=APPROVED`; `E=HANDOFF_AWAITING_ACK`. | `R=CONSUMED`; `E=CHECKED_OUT`; checkout created/activated; record receiving actor/time. | `COLLECTION_ACKNOWLEDGED` |
 | Add examination note | Collecting Investigator | Active checkout for an assigned case; return not yet initiated; nonblank text. | New note linked to checkout; `R` and `E` unchanged. | `EXAMINATION_NOTE_ADDED` |
-| Initiate return | Collecting Investigator | Active checkout; `E=CHECKED_OUT`; no prior return initiation. | Mark checkout return initiated and freeze notes; `R=CONSUMED`, `E=CHECKED_OUT`. | `RETURN_INITIATED` |
-| Inspect clean return and store | Custodian | Return initiated; physical item received; `E=CHECKED_OUT`; clean inspection. | Checkout completed; `E=IN_STORAGE`; `R=CONSUMED`. | `RETURN_INSPECTED_STORED` |
-| Inspect problematic return and hold | Custodian | Return initiated; physical item received; `E=CHECKED_OUT`; problematic inspection with nonblank comment. | Checkout completed; `E=HELD_FOR_REVIEW`; `R=CONSUMED`. | `RETURN_INSPECTED_HELD` |
-| Record and inspect unplanned return | Custodian | No return initiation; physical item received; `E=CHECKED_OUT`; nonblank reason; choose clean or problematic outcome and comment if problematic. | Notes freeze; checkout completed; `E=IN_STORAGE` or `HELD_FOR_REVIEW`; `R=CONSUMED`. | `UNPLANNED_RETURN_INSPECTED` with outcome |
+| Initiate return | Collecting Investigator | Active checkout; `E=CHECKED_OUT`; no prior return initiation. | Mark checkout return initiated and freeze notes; `R=CONSUMED`, `E=HANDIN_AWAITING_ACK`. | `RETURN_INITIATED` |
+| Inspect clean return and store | Custodian | Return initiated; physical item received; `E=HANDIN_AWAITING_ACK`; clean inspection. | Checkout completed; `E=IN_STORAGE`; `R=CONSUMED`. | `RETURN_INSPECTED_STORED` |
+| Record and inspect unplanned return | Custodian | No return initiation; physical item received; `E=CHECKED_OUT`; nonblank reason. | Notes freeze; checkout completed; `E=IN_STORAGE`; `R=CONSUMED`. | `UNPLANNED_RETURN_INSPECTED` |
 | Correct documentary custody history | Custodian | Target event exists; nonblank reason and correction text. | Original event unchanged; linked correction appended; `R`/`E` unchanged. | `HISTORY_CORRECTED` |
 | Correct examination note | Original note author | Still assigned to case; target note exists; nonblank correction text and reason. | Original note unchanged; appended correction linked to it; `R`/`E` unchanged. | `EXAMINATION_NOTE_CORRECTED` |
 
@@ -141,7 +136,7 @@ An approved request that is never collected remains approved until the Custodian
 - **Confirmed:** An item already checked out cannot be checked out again. A rejected request cannot be collected. Previous history entries cannot be edited or deleted.
 - **Confirmed:** A repeated approval, rejection, handoff, acknowledgment, return initiation, or inspection against an already-advanced record fails as an invalid transition and creates no duplicate event. A retry may read the current result, but it must not record a second physical action. A new checkout requires a new approved request and handoff after the item returns to storage.
 - **Confirmed:** At most one `PENDING` or `APPROVED` request may exist per evidence item, including when the same Investigator submits again. A competing request must not be accepted. The item cannot be collected through another request while a handoff or checkout is active.
-- **Confirmed:** `HANDOFF_AWAITING_ACK`, `CHECKED_OUT`, and `HELD_FOR_REVIEW` block new requests. The single-active-request rule is enforced atomically; the losing action receives a clear conflict result. Approved requests may be cancelled before acknowledgment with a reason, and an unacknowledged handoff may be reversed with a reason.
+- **Confirmed:** `HANDOFF_AWAITING_ACK` and `CHECKED_OUT` block new requests. The single-active-request rule is enforced atomically; the losing action receives a clear conflict result. Approved requests may be cancelled before acknowledgment with a reason, and an unacknowledged handoff may be reversed with a reason.
 - **Confirmed:** A new request may follow a terminal request as soon as the item is `IN_STORAGE` and has no `PENDING` or `APPROVED` request. Terminal request records remain unchanged in history.
 
 ## 6. Closed cases, compromised evidence, and amendments
@@ -151,12 +146,6 @@ An approved request that is never collected remains approved until the Custodian
 **Confirmed:** Case closure and disposal are deferred. The user also confirmed that closure stays outside the MVP. The MVP has no close/reopen transition and should not imply a closed-case status from inactivity or a completed checkout.
 
 **Confirmed future rule, outside the MVP:** If closure is later added, all active requests and checkouts must be resolved before a case closes. A closed case blocks new evidence registration, requests, and handoffs, while preserving readable history and reasoned corrections. Reopening and other closed-case actions require a later specification.
-
-### Compromised or problematic evidence
-
-**Confirmed:** A problematic return is held for review after Custodian inspection. The item is not available in storage. The user confirmed that release from hold stays outside the MVP.
-
-**Confirmed:** The Custodian chooses the problematic outcome during inspection and supplies a nonblank comment describing the concern. The hold preserves the custody chain and original notes, and blocks new requests and handoffs. There is no separate compromised flag or release transition in the MVP. A broader incident workflow and eventual release rules require a later specification.
 
 ### Amendments and corrections
 
@@ -173,7 +162,7 @@ An approved request that is never collected remains approved until the Custodian
 3. **Confirmed:** Evidence references are unique. Every evidence item belongs to a case; every note belongs to one checkout; every checkout traces to its evidence and approved request. Used storage locations remain stable.
 4. **Confirmed:** Service-layer checks enforce role and current case assignment on every operation, including direct calls. The active signed-in actor and time are recorded for custody-changing actions; a caller cannot supply another actor in their place.
 5. **Confirmed:** Each item has at most one pending/approved request, one unacknowledged handoff, and one active checkout. A state transition checks its preconditions atomically so competing or repeated operations cannot both succeed.
-6. **Confirmed cross-model consistency:** `HANDOFF_AWAITING_ACK` has exactly one matching approved request and unacknowledged handoff; `CHECKED_OUT` has exactly one active checkout from a consumed request; `IN_STORAGE` and `HELD_FOR_REVIEW` have no active checkout. These links update atomically with each transition.
+6. **Confirmed cross-model consistency:** `HANDOFF_AWAITING_ACK` has exactly one matching approved request and unacknowledged handoff; `CHECKED_OUT` has exactly one active checkout from a consumed request and no initiated return; `HANDIN_AWAITING_ACK` has exactly one active checkout with an initiated return; `IN_STORAGE` has no active checkout. These links update atomically with each transition.
 7. **Confirmed:** Each transition and its audit event(s) commit or roll back together. Event subject and actor IDs remain valid; an event is written only for a successful transition. Handoff recording and later acknowledgment are separate transactions and events.
 8. **Confirmed audit minimum:** Each event has an immutable, stable ID, type, signed-in actor ID and role, timestamp, and relevant case/evidence/request/checkout IDs. Include prior and resulting state for a state change, a reason/comment where required, and a target ID for a correction. Show history by timestamp with event ID as a tie-breaker.
 9. **Confirmed:** Database constraints and conditional state changes protect uniqueness and workflow preconditions. A conflict or storage failure is shown clearly and leaves the prior state intact.
@@ -186,7 +175,6 @@ An approved request that is never collected remains approved until the Custodian
 | DR-02 | The collector is the requester; the Custodian may reverse an unacknowledged handoff with a reason and audit event. |
 | DR-03 | No automatic request expiry; requester may withdraw while pending; Custodian may cancel an uncollected approval with a reason. A fresh request is permitted whenever the evidence is `IN_STORAGE` and has no pending or approved request. |
 | DR-04 | Custodian records physical receipt at inspection; new notes freeze when return is initiated; a reasoned Custodian inspection handles an unplanned return without initiation. |
-| DR-05 | A problematic return requires a hold comment; incident handling and release from hold are deferred. |
 | DR-06 | Custodian corrects documentary custody history; note author corrects their own notes; operational state repair needs a separate approved transition. |
 | DR-07 | Evidence registration uses only case, short description, and selected location; the system generates the stable unique reference. Preserve used locations and give audit events stable IDs. |
 | DR-08 | Closure is outside the MVP; if later added, resolve active requests/checkouts first, block new operations, and preserve history and corrections. |
