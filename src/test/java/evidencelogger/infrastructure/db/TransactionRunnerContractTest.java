@@ -2,6 +2,7 @@ package evidencelogger.infrastructure.db;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
 
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.sql.Connection;
 
@@ -10,10 +11,11 @@ import org.junit.jupiter.api.Test;
 class TransactionRunnerContractTest {
     @Test
     void workReceivesTheRunnerOwnedConnection() {
+        InvocationHandler noOpHandler = (proxy, method, arguments) -> null;
         Connection runnerOwnedConnection = (Connection) Proxy.newProxyInstance(
                 Connection.class.getClassLoader(),
                 new Class<?>[] {Connection.class},
-                (proxy, method, arguments) -> null);
+                noOpHandler);
 
         TransactionRunner runner = new TransactionRunner() {
             @Override

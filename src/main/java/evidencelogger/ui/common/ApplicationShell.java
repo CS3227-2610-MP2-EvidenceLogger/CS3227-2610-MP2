@@ -18,6 +18,7 @@ public final class ApplicationShell {
 
     private final BorderPane root;
 
+    /** Creates the initial application shell shown before role navigation. */
     public ApplicationShell() {
         Label title = new Label(APPLICATION_NAME);
         title.setFont(Font.font("System", FontWeight.BOLD, 28));

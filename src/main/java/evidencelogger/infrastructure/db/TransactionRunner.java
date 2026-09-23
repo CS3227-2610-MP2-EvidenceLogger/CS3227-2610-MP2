@@ -13,6 +13,7 @@ import java.sql.Connection;
 public interface TransactionRunner {
     <T> T inTransaction(TransactionalWork<T> work);
 
+    /** Work performed using the connection owned by the transaction runner. */
     @FunctionalInterface
     interface TransactionalWork<T> {
         T execute(Connection connection);
