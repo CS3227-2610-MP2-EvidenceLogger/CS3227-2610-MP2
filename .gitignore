@@ -28,3 +28,11 @@ references/
 # Raw evaluation artifacts
 /evaluation/raw/
 /evaluations/raw/
+
+# IDE metadata
+/.idea/
+*.iml
+/.vscode/
+
+# Local diagnostic logs
+/logs/

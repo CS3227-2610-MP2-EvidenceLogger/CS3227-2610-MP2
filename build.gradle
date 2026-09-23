@@ -1,0 +1,46 @@
+plugins {
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
+}
+
+group = 'evidencelogger'
+version = '0.1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+javafx {
+    version = '25.0.2'
+    modules = ['javafx.controls']
+}
+
+application {
+    mainClass = 'evidencelogger.app.EvidenceLoggerLauncher'
+    applicationDefaultJvmArgs = ['--enable-native-access=javafx.graphics']
+}
+
+dependencies {
+    implementation 'org.xerial:sqlite-jdbc:3.53.0.0'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:6.0.0'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:6.0.0'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs.addAll(['-Xlint:all', '-Werror'])
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+    testLogging {
+        events 'failed', 'skipped'
+    }
+}
