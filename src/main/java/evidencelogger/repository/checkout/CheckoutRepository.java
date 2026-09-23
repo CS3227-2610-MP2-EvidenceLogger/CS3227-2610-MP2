@@ -1,6 +1,7 @@
 package evidencelogger.repository.checkout;
 
 import java.sql.Connection;
+import java.time.Instant;
 import java.util.Optional;
 
 import evidencelogger.domain.CheckoutId;
@@ -14,7 +15,7 @@ public interface CheckoutRepository {
 
     void insert(Connection connection, CheckoutRecord checkout);
 
-    boolean markReturnInitiated(Connection connection, CheckoutId checkoutId);
+    boolean markReturnInitiated(Connection connection, CheckoutId checkoutId, Instant initiatedAt);
 
-    boolean complete(Connection connection, CheckoutId checkoutId);
+    boolean complete(Connection connection, CheckoutId checkoutId, Instant completedAt);
 }

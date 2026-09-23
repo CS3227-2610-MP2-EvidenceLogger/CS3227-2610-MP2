@@ -1,6 +1,7 @@
 package evidencelogger.repository.checkout;
 
 import java.sql.Connection;
+import java.time.Instant;
 import java.util.Optional;
 
 import evidencelogger.domain.CheckoutRequestId;
@@ -15,7 +16,8 @@ public interface HandoffRepository {
 
     void insert(Connection connection, HandoffRecord handoff);
 
-    boolean acknowledge(Connection connection, HandoffId handoffId);
+    boolean acknowledge(Connection connection, HandoffId handoffId, Instant acknowledgedAt);
 
-    boolean reverse(Connection connection, HandoffId handoffId, String reason);
+    boolean reverse(
+            Connection connection, HandoffId handoffId, String reason, Instant reversedAt);
 }
