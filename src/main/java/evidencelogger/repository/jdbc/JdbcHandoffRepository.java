@@ -8,6 +8,8 @@ import java.time.Instant;
 import java.util.Optional;
 
 import evidencelogger.domain.CheckoutRequestId;
+import evidencelogger.domain.CheckoutRequestStatus;
+import evidencelogger.domain.EvidenceCustodyState;
 import evidencelogger.domain.EvidenceId;
 import evidencelogger.domain.HandoffId;
 import evidencelogger.domain.UserId;
@@ -17,12 +19,12 @@ import evidencelogger.repository.checkout.HandoffRepository;
 
 /** SQLite/JDBC implementation of handoff persistence use cases. */
 public final class JdbcHandoffRepository implements HandoffRepository {
-    private static final String SELECT_COLUMNS = "handoff_id, request_id, evidence_id, "
+    private static final String SELECT_COLUMNS = "id AS handoff_id, request_id, evidence_id, "
             + "custodian_id, recorded_at, acknowledged_at, reversed_at, reversal_reason";
 
     @Override
     public Optional<HandoffRecord> findById(Connection connection, HandoffId handoffId) {
-        String sql = "SELECT " + SELECT_COLUMNS + " FROM handoff WHERE handoff_id = ?";
+        String sql = "SELECT " + SELECT_COLUMNS + " FROM handoff WHERE id = ?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, handoffId.toString());
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -51,18 +53,35 @@ public final class JdbcHandoffRepository implements HandoffRepository {
 
     @Override
     public void insert(Connection connection, HandoffRecord handoff) {
-        String sql = "INSERT INTO handoff (" + SELECT_COLUMNS
-                + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        if (handoff.acknowledgedAt().isPresent()
+                || handoff.reversedAt().isPresent()
+                || handoff.reversalReason().isPresent()) {
+            throw new IllegalArgumentException("new handoff must be unacknowledged and unreversed");
+        }
+        String sql = "INSERT INTO handoff ("
+                + "id, request_id, evidence_id, custodian_id, recorded_at)"
+                + " SELECT ?, r.id, r.evidence_id, ?, ?"
+                + " FROM checkout_request r"
+                + " WHERE r.id = ? AND r.evidence_id = ? AND r.status = ?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, handoff.handoffId().toString());
-            statement.setString(2, handoff.requestId().toString());
-            statement.setString(3, handoff.evidenceId().toString());
-            statement.setString(4, handoff.custodianId().toString());
-            statement.setString(5, handoff.recordedAt().toString());
-            setInstant(statement, 6, handoff.acknowledgedAt());
-            setInstant(statement, 7, handoff.reversedAt());
-            setOptionalText(statement, 8, handoff.reversalReason());
-            statement.executeUpdate();
+            statement.setString(2, handoff.custodianId().toString());
+            statement.setString(3, handoff.recordedAt().toString());
+            statement.setString(4, handoff.requestId().toString());
+            statement.setString(5, handoff.evidenceId().toString());
+            statement.setString(6, CheckoutRequestStatus.APPROVED.name());
+            if (statement.executeUpdate() != 1) {
+                throw new RepositoryException.Conflict(
+                        "handoff requires an approved request for the same evidence");
+            }
+            if (!transitionEvidenceState(
+                    connection,
+                    handoff.evidenceId(),
+                    EvidenceCustodyState.IN_STORAGE,
+                    EvidenceCustodyState.HANDOFF_AWAITING_ACK)) {
+                throw new RepositoryException.Conflict(
+                        "evidence is not available for handoff");
+            }
         } catch (SQLException exception) {
             if (isConstraintViolation(exception)) {
                 throw new RepositoryException.Conflict("handoff conflicts with an existing record");
@@ -74,10 +93,13 @@ public final class JdbcHandoffRepository implements HandoffRepository {
     @Override
     public boolean acknowledge(Connection connection, HandoffId handoffId, Instant acknowledgedAt) {
         String sql = "UPDATE handoff SET acknowledged_at = ?"
-                + " WHERE handoff_id = ? AND acknowledged_at IS NULL AND reversed_at IS NULL";
+                + " WHERE id = ? AND acknowledged_at IS NULL AND reversed_at IS NULL"
+                + " AND EXISTS (SELECT 1 FROM evidence_item e"
+                + " WHERE e.id = handoff.evidence_id AND e.custody_state = ?)";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, acknowledgedAt.toString());
             statement.setString(2, handoffId.toString());
+            statement.setString(3, EvidenceCustodyState.HANDOFF_AWAITING_ACK.name());
             return statement.executeUpdate() == 1;
         } catch (SQLException exception) {
             throw storageFailure("acknowledge handoff", exception);
@@ -88,13 +110,42 @@ public final class JdbcHandoffRepository implements HandoffRepository {
     public boolean reverse(
             Connection connection, HandoffId handoffId, String reason, Instant reversedAt) {
         String sql = "UPDATE handoff SET reversed_at = ?, reversal_reason = ?"
-                + " WHERE handoff_id = ? AND acknowledged_at IS NULL AND reversed_at IS NULL";
+                + " WHERE id = ? AND acknowledged_at IS NULL AND reversed_at IS NULL"
+                + " AND EXISTS (SELECT 1 FROM checkout_request r"
+                + " WHERE r.id = handoff.request_id AND r.evidence_id = handoff.evidence_id"
+                + " AND r.status = ?)"
+                + " RETURNING evidence_id, request_id";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, reversedAt.toString());
             statement.setString(2, reason);
             statement.setString(3, handoffId.toString());
-            return statement.executeUpdate() == 1;
+            statement.setString(4, CheckoutRequestStatus.APPROVED.name());
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return false;
+                }
+                EvidenceId evidenceId = EvidenceId.parse(resultSet.getString("evidence_id"));
+                CheckoutRequestId requestId = CheckoutRequestId.parse(
+                        resultSet.getString("request_id"));
+                if (!transitionRequestToCancelled(connection, requestId)) {
+                    throw new RepositoryException.Conflict(
+                            "handoff request is not approved for cancellation");
+                }
+                if (!transitionEvidenceState(
+                        connection,
+                        evidenceId,
+                        EvidenceCustodyState.HANDOFF_AWAITING_ACK,
+                        EvidenceCustodyState.IN_STORAGE)) {
+                    throw new RepositoryException.Conflict(
+                            "evidence is not awaiting handoff acknowledgment");
+                }
+                return true;
+            }
         } catch (SQLException exception) {
+            if (isConstraintViolation(exception)) {
+                throw new RepositoryException.Conflict(
+                        "handoff reversal conflicts with the persisted state");
+            }
             throw storageFailure("reverse handoff", exception);
         }
     }
@@ -117,27 +168,34 @@ public final class JdbcHandoffRepository implements HandoffRepository {
         return value == null ? Optional.empty() : Optional.of(Instant.parse(value));
     }
 
-    private static void setInstant(
-            PreparedStatement statement, int index, Optional<Instant> instant) throws SQLException {
-        if (instant.isPresent()) {
-            statement.setString(index, instant.orElseThrow().toString());
-        } else {
-            statement.setNull(index, java.sql.Types.VARCHAR);
-        }
-    }
-
-    private static void setOptionalText(
-            PreparedStatement statement, int index, Optional<String> value) throws SQLException {
-        if (value.isPresent()) {
-            statement.setString(index, value.orElseThrow());
-        } else {
-            statement.setNull(index, java.sql.Types.VARCHAR);
-        }
-    }
-
     private static boolean isConstraintViolation(SQLException exception) {
         return "23000".equals(exception.getSQLState())
                 || String.valueOf(exception.getMessage()).toLowerCase().contains("constraint");
+    }
+
+    private static boolean transitionEvidenceState(
+            Connection connection,
+            EvidenceId evidenceId,
+            EvidenceCustodyState expected,
+            EvidenceCustodyState resulting) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE evidence_item SET custody_state = ? WHERE id = ? AND custody_state = ?")) {
+            statement.setString(1, resulting.name());
+            statement.setString(2, evidenceId.toString());
+            statement.setString(3, expected.name());
+            return statement.executeUpdate() == 1;
+        }
+    }
+
+    private static boolean transitionRequestToCancelled(
+            Connection connection, CheckoutRequestId requestId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE checkout_request SET status = ? WHERE id = ? AND status = ?")) {
+            statement.setString(1, CheckoutRequestStatus.CANCELLED.name());
+            statement.setString(2, requestId.toString());
+            statement.setString(3, CheckoutRequestStatus.APPROVED.name());
+            return statement.executeUpdate() == 1;
+        }
     }
 
     private static RepositoryException.StorageFailure storageFailure(

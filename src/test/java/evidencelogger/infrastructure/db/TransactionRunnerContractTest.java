@@ -1,12 +1,19 @@
 package evidencelogger.infrastructure.db;
 
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.Test;
+
+import evidencelogger.service.ServiceException;
 
 class TransactionRunnerContractTest {
     @Test
@@ -27,5 +34,40 @@ class TransactionRunnerContractTest {
         Connection receivedConnection = runner.inTransaction(connection -> connection);
 
         assertSame(runnerOwnedConnection, receivedConnection);
+    }
+
+    @Test
+    void commitFailureRollsBackAndPreservesTheCommitException() {
+        AtomicBoolean autoCommit = new AtomicBoolean(true);
+        AtomicBoolean rollbackCalled = new AtomicBoolean();
+        SQLException commitFailure = new SQLException("injected commit failure");
+        InvocationHandler handler = (proxy, method, arguments) -> switch (method.getName()) {
+        case "getAutoCommit" -> autoCommit.get();
+        case "setAutoCommit" -> {
+            autoCommit.set((boolean) arguments[0]);
+            yield null;
+        }
+        case "commit" -> throw commitFailure;
+        case "rollback" -> {
+            rollbackCalled.set(true);
+            yield null;
+        }
+        case "close" -> null;
+        case "isClosed" -> false;
+        default -> throw new UnsupportedOperationException(method.getName());
+        };
+        Connection connection = (Connection) Proxy.newProxyInstance(
+                Connection.class.getClassLoader(),
+                new Class<?>[] {Connection.class},
+                handler);
+        JdbcTransactionRunner runner = new JdbcTransactionRunner(() -> connection);
+
+        var failure = assertThrows(ServiceException.StorageFailure.class, () ->
+                runner.inTransaction(ignored -> "result"));
+
+        assertSame(commitFailure, failure.getCause());
+        assertTrue(rollbackCalled.get());
+        assertTrue(autoCommit.get());
+        assertInstanceOf(SQLException.class, failure.getCause());
     }
 }

@@ -5,85 +5,107 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
+import org.junit.jupiter.api.io.TempDir;
 
 import evidencelogger.domain.CheckoutRequestId;
 import evidencelogger.domain.CheckoutRequestStatus;
 import evidencelogger.domain.EvidenceId;
-import evidencelogger.domain.UserId;
 import evidencelogger.repository.RepositoryException;
 import evidencelogger.repository.checkout.CheckoutRequestRecord;
 
 class JdbcCheckoutRequestRepositoryTest {
     private static final Instant NOW = Instant.parse("2026-09-23T00:00:00Z");
+    private static final EvidenceId EVIDENCE_ID =
+            EvidenceId.parse("00000000-0000-0000-0000-000000000510");
+    private static final CheckoutRequestId FIRST_REQUEST_ID =
+            CheckoutRequestId.parse("00000000-0000-0000-0000-000000000511");
+    private static final CheckoutRequestId SECOND_REQUEST_ID =
+            CheckoutRequestId.parse("00000000-0000-0000-0000-000000000512");
 
-    private Connection connection;
+    @TempDir
+    Path temporaryDirectory;
+
+    private CheckoutRepositoryTestDatabase database;
     private JdbcCheckoutRequestRepository repository;
 
     @BeforeEach
-    void setUp() throws SQLException {
-        connection = DriverManager.getConnection("jdbc:sqlite::memory:");
-        try (Statement statement = connection.createStatement()) {
-            statement.executeUpdate("CREATE TABLE checkout_request ("
-                    + "request_id TEXT PRIMARY KEY, evidence_id TEXT NOT NULL, "
-                    + "requester_id TEXT NOT NULL, purpose TEXT NOT NULL, "
-                    + "expected_return_at TEXT NOT NULL, status TEXT NOT NULL, "
-                    + "submitted_at TEXT NOT NULL)");
-        }
+    void setUp() {
+        database = new CheckoutRepositoryTestDatabase(
+                temporaryDirectory.resolve("checkout-request.db"));
+        database.insertEvidence(EVIDENCE_ID);
         repository = new JdbcCheckoutRequestRepository();
     }
 
     @Test
-    void insertsMapsAndOrdersRequestHistory() {
-        EvidenceId evidenceId = evidenceId();
-        CheckoutRequestRecord first = request(evidenceId, NOW, CheckoutRequestStatus.PENDING);
-        CheckoutRequestRecord second = request(
-                evidenceId, NOW.plusSeconds(1), CheckoutRequestStatus.PENDING);
+    void insertsMapsAndOrdersRequestHistoryOnProductionSchema() {
+        CheckoutRequestRecord firstPending = request(
+                FIRST_REQUEST_ID, NOW, CheckoutRequestStatus.PENDING);
+        CheckoutRequestRecord firstRejected = request(
+                FIRST_REQUEST_ID, NOW, CheckoutRequestStatus.REJECTED);
+        CheckoutRequestRecord secondPending = request(
+                SECOND_REQUEST_ID, NOW.plusSeconds(1), CheckoutRequestStatus.PENDING);
 
-        repository.insertPending(connection, first);
-        repository.insertPending(connection, second);
+        database.inTransaction(connection -> {
+            repository.insertPending(connection, firstPending);
+            assertTrue(repository.transitionStatus(
+                    connection,
+                    firstPending.requestId(),
+                    CheckoutRequestStatus.PENDING,
+                    CheckoutRequestStatus.REJECTED));
+            repository.insertPending(connection, secondPending);
+            return null;
+        });
 
-        assertEquals(first, repository.findById(connection, first.requestId()).orElseThrow());
-        assertEquals(List.of(first, second), repository.findForEvidence(connection, evidenceId));
-        assertEquals(first, repository.findPendingOrApprovedForEvidence(
-                connection, evidenceId).orElseThrow());
+        assertEquals(firstRejected, database.inTransaction(connection ->
+                repository.findById(connection, FIRST_REQUEST_ID).orElseThrow()));
+        assertEquals(List.of(firstRejected, secondPending), database.inTransaction(connection ->
+                repository.findForEvidence(connection, EVIDENCE_ID)));
+        assertEquals(secondPending, database.inTransaction(connection ->
+                repository.findPendingOrApprovedForEvidence(
+                        connection, EVIDENCE_ID).orElseThrow()));
     }
 
     @Test
     void conditionalTransitionOnlyAdvancesTheExpectedState() {
         CheckoutRequestRecord request = request(
-                evidenceId(), NOW, CheckoutRequestStatus.PENDING);
-        repository.insertPending(connection, request);
+                FIRST_REQUEST_ID, NOW, CheckoutRequestStatus.PENDING);
 
-        assertTrue(repository.transitionStatus(
-                connection,
-                request.requestId(),
-                CheckoutRequestStatus.PENDING,
-                CheckoutRequestStatus.APPROVED));
-        assertFalse(repository.transitionStatus(
-                connection,
-                request.requestId(),
-                CheckoutRequestStatus.PENDING,
-                CheckoutRequestStatus.REJECTED));
+        database.inTransaction(connection -> {
+            repository.insertPending(connection, request);
+            assertTrue(repository.transitionStatus(
+                    connection,
+                    request.requestId(),
+                    CheckoutRequestStatus.PENDING,
+                    CheckoutRequestStatus.APPROVED));
+            assertFalse(repository.transitionStatus(
+                    connection,
+                    request.requestId(),
+                    CheckoutRequestStatus.PENDING,
+                    CheckoutRequestStatus.REJECTED));
+            return null;
+        });
     }
 
     @Test
     void duplicateRequestIdentifiersBecomeTypedConflicts() {
         CheckoutRequestRecord request = request(
-                evidenceId(), NOW, CheckoutRequestStatus.PENDING);
-        repository.insertPending(connection, request);
+                FIRST_REQUEST_ID, NOW, CheckoutRequestStatus.PENDING);
+        database.inTransaction(connection -> {
+            repository.insertPending(connection, request);
+            return null;
+        });
 
-        Executable duplicateInsert = () -> repository.insertPending(connection, request);
+        Executable duplicateInsert = () -> database.inTransaction(connection -> {
+            repository.insertPending(connection, request);
+            return null;
+        });
         RepositoryException.Conflict conflict = assertThrows(
                 RepositoryException.Conflict.class, duplicateInsert);
 
@@ -91,18 +113,16 @@ class JdbcCheckoutRequestRepositoryTest {
     }
 
     private static CheckoutRequestRecord request(
-            EvidenceId evidenceId, Instant submittedAt, CheckoutRequestStatus status) {
+            CheckoutRequestId requestId,
+            Instant submittedAt,
+            CheckoutRequestStatus status) {
         return new CheckoutRequestRecord(
-                new CheckoutRequestId(UUID.randomUUID()),
-                evidenceId,
-                new UserId(UUID.randomUUID()),
+                requestId,
+                EVIDENCE_ID,
+                CheckoutRepositoryTestDatabase.INVESTIGATOR_ID,
                 "Review item",
                 submittedAt.plusSeconds(3600),
                 status,
                 submittedAt);
-    }
-
-    private static EvidenceId evidenceId() {
-        return new EvidenceId(UUID.randomUUID());
     }
 }
