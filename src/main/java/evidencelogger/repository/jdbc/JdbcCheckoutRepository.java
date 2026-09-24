@@ -132,16 +132,47 @@ public final class JdbcCheckoutRepository implements CheckoutRepository {
 
     @Override
     public boolean complete(Connection connection, CheckoutId checkoutId, Instant completedAt) {
+        return completeWithInspection(
+                connection,
+                checkoutId,
+                completedAt,
+                false,
+                EvidenceCustodyState.HANDIN_AWAITING_ACK);
+    }
+
+    @Override
+    public boolean completeUnplanned(
+            Connection connection, CheckoutId checkoutId, Instant completedAt) {
+        return completeWithInspection(
+                connection,
+                checkoutId,
+                completedAt,
+                true,
+                EvidenceCustodyState.CHECKED_OUT);
+    }
+
+    private static boolean completeWithInspection(
+            Connection connection,
+            CheckoutId checkoutId,
+            Instant completedAt,
+            boolean unplanned,
+            EvidenceCustodyState expectedEvidenceState) {
         String sql = "UPDATE checkout SET completed_at = ?, return_outcome = ?"
-                + " WHERE id = ? AND return_initiated_at IS NOT NULL AND completed_at IS NULL"
+                + " WHERE id = ? AND return_initiated_at "
+                + (unplanned ? "IS NULL" : "IS NOT NULL")
+                + " AND completed_at IS NULL"
                 + " AND EXISTS (SELECT 1 FROM evidence_item e"
                 + " WHERE e.id = checkout.evidence_id AND e.custody_state = ?)"
+                + " AND EXISTS (SELECT 1 FROM return_inspection i"
+                + " WHERE i.checkout_id = checkout.id AND i.outcome = ? AND i.unplanned = ?)"
                 + " RETURNING evidence_id";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, completedAt.toString());
             statement.setString(2, "STORED");
             statement.setString(3, checkoutId.toString());
-            statement.setString(4, EvidenceCustodyState.HANDIN_AWAITING_ACK.name());
+            statement.setString(4, expectedEvidenceState.name());
+            statement.setString(5, "STORED");
+            statement.setBoolean(6, unplanned);
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (!resultSet.next()) {
                     return false;
@@ -150,7 +181,7 @@ public final class JdbcCheckoutRepository implements CheckoutRepository {
                 if (!transitionEvidenceState(
                         connection,
                         evidenceId,
-                        EvidenceCustodyState.HANDIN_AWAITING_ACK,
+                        expectedEvidenceState,
                         EvidenceCustodyState.IN_STORAGE)) {
                     throw new RepositoryException.Conflict(
                             "evidence is not awaiting return inspection");
@@ -158,7 +189,9 @@ public final class JdbcCheckoutRepository implements CheckoutRepository {
                 return true;
             }
         } catch (SQLException exception) {
-            throw storageFailure("complete checkout return", exception);
+            throw storageFailure(
+                    unplanned ? "complete unplanned checkout return" : "complete checkout return",
+                    exception);
         }
     }
 

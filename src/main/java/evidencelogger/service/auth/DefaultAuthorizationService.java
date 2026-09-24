@@ -1,10 +1,12 @@
 package evidencelogger.service.auth;
 
 import java.util.Objects;
+import java.util.function.BiPredicate;
 
 import evidencelogger.domain.CaseId;
 import evidencelogger.domain.CheckoutId;
 import evidencelogger.domain.Role;
+import evidencelogger.domain.UserId;
 import evidencelogger.repository.AuthorizationRepository;
 import evidencelogger.service.ServiceException;
 
@@ -34,9 +36,16 @@ public final class DefaultAuthorizationService implements AuthorizationService {
 
     @Override
     public AuthenticatedSession requireAssignedInvestigator(CaseId caseId) {
+        return requireAssignedInvestigator(caseId, authorizationRepository::isAssigned);
+    }
+
+    @Override
+    public AuthenticatedSession requireAssignedInvestigator(
+            CaseId caseId, BiPredicate<CaseId, UserId> assignmentCheck) {
         Objects.requireNonNull(caseId, "caseId");
+        Objects.requireNonNull(assignmentCheck, "assignmentCheck");
         AuthenticatedSession session = requireInvestigator();
-        if (!authorizationRepository.isAssigned(caseId, session.userId())) {
+        if (!assignmentCheck.test(caseId, session.userId())) {
             throw new ServiceException.Forbidden(
                     "The signed-in Investigator is not assigned to this case");
         }
@@ -45,9 +54,17 @@ public final class DefaultAuthorizationService implements AuthorizationService {
 
     @Override
     public AuthenticatedSession requireCollectingInvestigator(CheckoutId checkoutId) {
+        return requireCollectingInvestigator(
+                checkoutId, authorizationRepository::isCollectingInvestigator);
+    }
+
+    @Override
+    public AuthenticatedSession requireCollectingInvestigator(
+            CheckoutId checkoutId, BiPredicate<CheckoutId, UserId> collectorCheck) {
         Objects.requireNonNull(checkoutId, "checkoutId");
+        Objects.requireNonNull(collectorCheck, "collectorCheck");
         AuthenticatedSession session = requireInvestigator();
-        if (!authorizationRepository.isCollectingInvestigator(checkoutId, session.userId())) {
+        if (!collectorCheck.test(checkoutId, session.userId())) {
             throw new ServiceException.Forbidden(
                     "The signed-in Investigator is not authorized for this checkout");
         }

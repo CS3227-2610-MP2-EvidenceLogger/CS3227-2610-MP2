@@ -127,8 +127,12 @@ class AuthenticationAuthorizationIntegrationTest {
     @Test
     void connectionBoundAuthorizationUsesTheCallerOwnedTransaction() throws SQLException {
         seedAuthorizationRelationships();
-        JdbcAuthorizationRepository authorization =
+        JdbcAuthorizationRepository authorizationRepository =
                 new JdbcAuthorizationRepository(connectionFactory);
+        AuthorizationService authorization = new DefaultAuthorizationService(
+                sessions, authorizationRepository);
+        sessions.establish(new AuthenticatedSession(
+                INVESTIGATOR_ID, Role.INVESTIGATOR, "Alex Investigator"));
 
         try (Connection connection = connectionFactory.open()) {
             connection.setAutoCommit(false);
@@ -140,9 +144,16 @@ class AuthenticationAuthorizationIntegrationTest {
                 statement.executeUpdate();
             }
 
-            assertFalse(authorization.isAssigned(connection, CASE_ID, INVESTIGATOR_ID));
-            assertFalse(authorization.isCollectingInvestigator(
-                    connection, CHECKOUT_ID, INVESTIGATOR_ID));
+            assertThrows(ServiceException.Forbidden.class, () ->
+                    authorization.requireAssignedInvestigator(
+                            CASE_ID, (caseId, investigatorId) ->
+                                    authorizationRepository.isAssigned(
+                                            connection, caseId, investigatorId)));
+            assertThrows(ServiceException.Forbidden.class, () ->
+                    authorization.requireCollectingInvestigator(
+                            CHECKOUT_ID, (checkoutId, investigatorId) ->
+                                    authorizationRepository.isCollectingInvestigator(
+                                            connection, checkoutId, investigatorId)));
             connection.rollback();
         }
     }

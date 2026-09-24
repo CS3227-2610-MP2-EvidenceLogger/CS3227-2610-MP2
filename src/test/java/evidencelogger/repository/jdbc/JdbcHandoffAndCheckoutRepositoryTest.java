@@ -21,10 +21,12 @@ import evidencelogger.domain.CheckoutRequestStatus;
 import evidencelogger.domain.EvidenceCustodyState;
 import evidencelogger.domain.EvidenceId;
 import evidencelogger.domain.HandoffId;
+import evidencelogger.domain.ReturnInspectionOutcome;
 import evidencelogger.repository.RepositoryException;
 import evidencelogger.repository.checkout.CheckoutRecord;
 import evidencelogger.repository.checkout.CheckoutRequestRecord;
 import evidencelogger.repository.checkout.HandoffRecord;
+import evidencelogger.repository.checkout.ReturnInspectionRecord;
 
 class JdbcHandoffAndCheckoutRepositoryTest {
     private static final Instant NOW = Instant.parse("2026-09-23T00:00:00Z");
@@ -46,6 +48,7 @@ class JdbcHandoffAndCheckoutRepositoryTest {
     private JdbcCheckoutRequestRepository requests;
     private JdbcHandoffRepository handoffs;
     private JdbcCheckoutRepository checkouts;
+    private JdbcReturnInspectionRepository inspections;
 
     @BeforeEach
     void setUp() {
@@ -55,6 +58,7 @@ class JdbcHandoffAndCheckoutRepositoryTest {
         requests = new JdbcCheckoutRequestRepository();
         handoffs = new JdbcHandoffRepository();
         checkouts = new JdbcCheckoutRepository();
+        inspections = new JdbcReturnInspectionRepository();
         insertApprovedRequest();
     }
 
@@ -98,6 +102,7 @@ class JdbcHandoffAndCheckoutRepositoryTest {
                 handoffs.findUnacknowledgedForRequest(
                         connection, handoff.requestId()).isEmpty()));
         assertEquals(EvidenceCustodyState.IN_STORAGE, evidenceState());
+        assertEquals(CheckoutRequestStatus.CANCELLED, requestStatus());
     }
 
     @Test
@@ -122,14 +127,45 @@ class JdbcHandoffAndCheckoutRepositoryTest {
         assertEquals(EvidenceCustodyState.HANDIN_AWAITING_ACK,
                 database.inTransaction(connection -> checkouts.findById(
                         connection, checkout.checkoutId()).orElseThrow().evidenceState()));
-        assertTrue(database.inTransactionBoolean(connection ->
+        assertFalse(database.inTransactionBoolean(connection ->
                 checkouts.complete(connection, checkout.checkoutId(), NOW.plusSeconds(120))));
+        assertTrue(database.inTransactionBoolean(connection ->
+                insertInspectionAndComplete(
+                        connection, false, "", NOW.plusSeconds(120))));
         assertEquals(EvidenceCustodyState.IN_STORAGE,
                 database.inTransaction(connection -> checkouts.findById(
                         connection, checkout.checkoutId()).orElseThrow().evidenceState()));
         assertTrue(database.inTransactionBoolean(connection ->
                 checkouts.findActiveForEvidence(connection, checkout.evidenceId()).isEmpty()));
         assertEquals(CheckoutRequestStatus.CONSUMED, requestStatus());
+    }
+
+    @Test
+    void unplannedReturnRequiresInspectionAndCompletesWithoutInitiation() {
+        HandoffRecord handoff = handoff();
+        CheckoutRecord checkout = checkout();
+        database.inTransaction(connection -> {
+            handoffs.insert(connection, handoff);
+            assertTrue(handoffs.acknowledge(
+                    connection, handoff.handoffId(), NOW.plusSeconds(30)));
+            checkouts.insert(connection, checkout);
+            return null;
+        });
+
+        assertFalse(database.inTransactionBoolean(connection ->
+                checkouts.completeUnplanned(
+                        connection, CHECKOUT_ID, NOW.plusSeconds(60))));
+        assertTrue(database.inTransactionBoolean(connection ->
+                insertInspectionAndComplete(
+                        connection,
+                        true,
+                        "Returned without prior initiation",
+                        NOW.plusSeconds(60))));
+
+        CheckoutRecord completed = database.inTransaction(connection ->
+                checkouts.findById(connection, CHECKOUT_ID).orElseThrow());
+        assertEquals(Optional.of(NOW.plusSeconds(60)), completed.completedAt());
+        assertEquals(EvidenceCustodyState.IN_STORAGE, completed.evidenceState());
     }
 
     @Test
@@ -174,6 +210,65 @@ class JdbcHandoffAndCheckoutRepositoryTest {
                 }));
 
         assertEquals(EvidenceCustodyState.IN_STORAGE, evidenceState());
+    }
+
+    @Test
+    void handoffInsertRejectsAlreadyAcknowledgedOrReversedRecords() {
+        HandoffRecord acknowledged = new HandoffRecord(
+                HANDOFF_ID,
+                REQUEST_ID,
+                EVIDENCE_ID,
+                CheckoutRepositoryTestDatabase.CUSTODIAN_ID,
+                NOW,
+                Optional.of(NOW.plusSeconds(1)),
+                Optional.empty(),
+                Optional.empty());
+        HandoffRecord reversed = new HandoffRecord(
+                HANDOFF_ID,
+                REQUEST_ID,
+                EVIDENCE_ID,
+                CheckoutRepositoryTestDatabase.CUSTODIAN_ID,
+                NOW,
+                Optional.empty(),
+                Optional.of(NOW.plusSeconds(1)),
+                Optional.of("Already reversed"));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                database.inTransaction(connection -> {
+                    handoffs.insert(connection, acknowledged);
+                    return null;
+                }));
+        assertThrows(IllegalArgumentException.class, () ->
+                database.inTransaction(connection -> {
+                    handoffs.insert(connection, reversed);
+                    return null;
+                }));
+
+        assertTrue(database.inTransactionBoolean(connection ->
+                handoffs.findById(connection, HANDOFF_ID).isEmpty()));
+        assertEquals(EvidenceCustodyState.IN_STORAGE, evidenceState());
+    }
+
+    @Test
+    void blankHandoffReversalReasonBecomesAConflictWithoutPartialChanges() {
+        database.inTransaction(connection -> {
+            handoffs.insert(connection, handoff());
+            return null;
+        });
+
+        assertThrows(RepositoryException.Conflict.class, () ->
+                database.inTransaction(connection -> {
+                    handoffs.reverse(connection, HANDOFF_ID, " ", NOW.plusSeconds(60));
+                    return null;
+                }));
+
+        assertTrue(database.inTransactionBoolean(connection ->
+                handoffs.findById(connection, HANDOFF_ID)
+                        .orElseThrow()
+                        .reversedAt()
+                        .isEmpty()));
+        assertEquals(CheckoutRequestStatus.APPROVED, requestStatus());
+        assertEquals(EvidenceCustodyState.HANDOFF_AWAITING_ACK, evidenceState());
     }
 
     @Test
@@ -293,6 +388,20 @@ class JdbcHandoffAndCheckoutRepositoryTest {
                 throw new IllegalStateException(exception);
             }
         });
+    }
+
+    private boolean insertInspectionAndComplete(
+            Connection connection, boolean unplanned, String reason, Instant inspectedAt) {
+        inspections.insert(connection, new ReturnInspectionRecord(
+                CHECKOUT_ID,
+                CheckoutRepositoryTestDatabase.CUSTODIAN_ID,
+                ReturnInspectionOutcome.STORED,
+                unplanned,
+                reason,
+                inspectedAt));
+        return unplanned
+                ? checkouts.completeUnplanned(connection, CHECKOUT_ID, inspectedAt)
+                : checkouts.complete(connection, CHECKOUT_ID, inspectedAt);
     }
 
     private static void setEvidenceState(

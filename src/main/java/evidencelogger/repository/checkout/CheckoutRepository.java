@@ -18,4 +18,7 @@ public interface CheckoutRepository {
     boolean markReturnInitiated(Connection connection, CheckoutId checkoutId, Instant initiatedAt);
 
     boolean complete(Connection connection, CheckoutId checkoutId, Instant completedAt);
+
+    boolean completeUnplanned(
+            Connection connection, CheckoutId checkoutId, Instant completedAt);
 }

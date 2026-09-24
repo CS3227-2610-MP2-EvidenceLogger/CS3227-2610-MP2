@@ -53,22 +53,23 @@ public final class JdbcHandoffRepository implements HandoffRepository {
 
     @Override
     public void insert(Connection connection, HandoffRecord handoff) {
+        if (handoff.acknowledgedAt().isPresent()
+                || handoff.reversedAt().isPresent()
+                || handoff.reversalReason().isPresent()) {
+            throw new IllegalArgumentException("new handoff must be unacknowledged and unreversed");
+        }
         String sql = "INSERT INTO handoff ("
-                + "id, request_id, evidence_id, custodian_id, recorded_at, "
-                + "acknowledged_at, reversed_at, reversal_reason)"
-                + " SELECT ?, r.id, r.evidence_id, ?, ?, ?, ?, ?"
+                + "id, request_id, evidence_id, custodian_id, recorded_at)"
+                + " SELECT ?, r.id, r.evidence_id, ?, ?"
                 + " FROM checkout_request r"
                 + " WHERE r.id = ? AND r.evidence_id = ? AND r.status = ?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, handoff.handoffId().toString());
             statement.setString(2, handoff.custodianId().toString());
             statement.setString(3, handoff.recordedAt().toString());
-            setInstant(statement, 4, handoff.acknowledgedAt());
-            setInstant(statement, 5, handoff.reversedAt());
-            setOptionalText(statement, 6, handoff.reversalReason());
-            statement.setString(7, handoff.requestId().toString());
-            statement.setString(8, handoff.evidenceId().toString());
-            statement.setString(9, CheckoutRequestStatus.APPROVED.name());
+            statement.setString(4, handoff.requestId().toString());
+            statement.setString(5, handoff.evidenceId().toString());
+            statement.setString(6, CheckoutRequestStatus.APPROVED.name());
             if (statement.executeUpdate() != 1) {
                 throw new RepositoryException.Conflict(
                         "handoff requires an approved request for the same evidence");
@@ -110,16 +111,26 @@ public final class JdbcHandoffRepository implements HandoffRepository {
             Connection connection, HandoffId handoffId, String reason, Instant reversedAt) {
         String sql = "UPDATE handoff SET reversed_at = ?, reversal_reason = ?"
                 + " WHERE id = ? AND acknowledged_at IS NULL AND reversed_at IS NULL"
-                + " RETURNING evidence_id";
+                + " AND EXISTS (SELECT 1 FROM checkout_request r"
+                + " WHERE r.id = handoff.request_id AND r.evidence_id = handoff.evidence_id"
+                + " AND r.status = ?)"
+                + " RETURNING evidence_id, request_id";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, reversedAt.toString());
             statement.setString(2, reason);
             statement.setString(3, handoffId.toString());
+            statement.setString(4, CheckoutRequestStatus.APPROVED.name());
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (!resultSet.next()) {
                     return false;
                 }
                 EvidenceId evidenceId = EvidenceId.parse(resultSet.getString("evidence_id"));
+                CheckoutRequestId requestId = CheckoutRequestId.parse(
+                        resultSet.getString("request_id"));
+                if (!transitionRequestToCancelled(connection, requestId)) {
+                    throw new RepositoryException.Conflict(
+                            "handoff request is not approved for cancellation");
+                }
                 if (!transitionEvidenceState(
                         connection,
                         evidenceId,
@@ -131,6 +142,10 @@ public final class JdbcHandoffRepository implements HandoffRepository {
                 return true;
             }
         } catch (SQLException exception) {
+            if (isConstraintViolation(exception)) {
+                throw new RepositoryException.Conflict(
+                        "handoff reversal conflicts with the persisted state");
+            }
             throw storageFailure("reverse handoff", exception);
         }
     }
@@ -153,24 +168,6 @@ public final class JdbcHandoffRepository implements HandoffRepository {
         return value == null ? Optional.empty() : Optional.of(Instant.parse(value));
     }
 
-    private static void setInstant(
-            PreparedStatement statement, int index, Optional<Instant> instant) throws SQLException {
-        if (instant.isPresent()) {
-            statement.setString(index, instant.orElseThrow().toString());
-        } else {
-            statement.setNull(index, java.sql.Types.VARCHAR);
-        }
-    }
-
-    private static void setOptionalText(
-            PreparedStatement statement, int index, Optional<String> value) throws SQLException {
-        if (value.isPresent()) {
-            statement.setString(index, value.orElseThrow());
-        } else {
-            statement.setNull(index, java.sql.Types.VARCHAR);
-        }
-    }
-
     private static boolean isConstraintViolation(SQLException exception) {
         return "23000".equals(exception.getSQLState())
                 || String.valueOf(exception.getMessage()).toLowerCase().contains("constraint");
@@ -186,6 +183,17 @@ public final class JdbcHandoffRepository implements HandoffRepository {
             statement.setString(1, resulting.name());
             statement.setString(2, evidenceId.toString());
             statement.setString(3, expected.name());
+            return statement.executeUpdate() == 1;
+        }
+    }
+
+    private static boolean transitionRequestToCancelled(
+            Connection connection, CheckoutRequestId requestId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE checkout_request SET status = ? WHERE id = ? AND status = ?")) {
+            statement.setString(1, CheckoutRequestStatus.CANCELLED.name());
+            statement.setString(2, requestId.toString());
+            statement.setString(3, CheckoutRequestStatus.APPROVED.name());
             return statement.executeUpdate() == 1;
         }
     }
