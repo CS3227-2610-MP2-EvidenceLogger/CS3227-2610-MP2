@@ -1,0 +1,7 @@
+interface:
+  display_name: "Code Refactor"
+  short_description: "Safely refactor scoped code"
+  default_prompt: "Use $code-refactor to analyze and safely refactor the explicitly scoped code."
+
+policy:
+  allow_implicit_invocation: false
