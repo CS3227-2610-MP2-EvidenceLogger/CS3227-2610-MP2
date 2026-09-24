@@ -175,7 +175,7 @@ Diagnostic logging and domain audit history have different purposes:
 - Diagnostic logs describe software operation and failures and may rotate.
 - Audit events are permanent domain records, append-only, transactional, and shown in authorized history views.
 
-Never log plaintext passwords, password hashes/salts, full SQL parameters, examination-note text, request purpose, correction text, or hold comments. Prefer stable record IDs, action names, error categories, and the authenticated user ID. A failed operation should be logged only after rollback is known; it must not create a domain audit event.
+Never log plaintext passwords, password hashes/salts, full SQL parameters, examination-note text, request purpose, or correction text. Prefer stable record IDs, action names, error categories, and the authenticated user ID. A failed operation should be logged only after rollback is known; it must not create a domain audit event.
 
 Logging failure should be reported to the user when practical but must not cause a successful custody transaction to be repeated. File-handler initialization should fall back to console diagnostics rather than preventing access to the database unless the team later approves logging as a hard startup requirement.
 

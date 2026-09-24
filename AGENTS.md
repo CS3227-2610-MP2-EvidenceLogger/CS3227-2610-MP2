@@ -53,7 +53,7 @@
   - human corrections
   - tests/results
   - unresolved issues
-- The log file should follow this naming convention: `YYYY-MM-DD-<short-task-description>.md`
+- The log file should follow this naming convention: `YYYY-MM-DD-HHMM-<short-task-description>.md`
 
 You may use the following template, and fill up all sections except `Human intervention`, `Observations`,
 `Reflection Note`, and `Verification of summary`:

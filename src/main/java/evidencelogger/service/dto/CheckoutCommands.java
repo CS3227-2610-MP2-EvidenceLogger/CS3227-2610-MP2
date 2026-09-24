@@ -2,7 +2,6 @@ package evidencelogger.service.dto;
 
 import java.time.Instant;
 import java.util.Objects;
-import java.util.Optional;
 
 import evidencelogger.domain.CheckoutId;
 import evidencelogger.domain.CheckoutRequestId;
@@ -22,20 +21,6 @@ public final class CheckoutCommands {
             throw new IllegalArgumentException(name + " must not be blank");
         }
         return value;
-    }
-
-    private static Optional<String> requireCommentForHeldOutcome(
-            ReturnInspectionOutcome outcome,
-            Optional<String> comment) {
-        Objects.requireNonNull(comment, "comment");
-        if (outcome == ReturnInspectionOutcome.HELD_FOR_REVIEW) {
-            if (comment.isEmpty()) {
-                throw new IllegalArgumentException(
-                        "comment is required when evidence is held for review");
-            }
-            requireNonBlank(comment.orElseThrow(), "comment");
-        }
-        return comment;
     }
 
     /** Input for submitting an evidence checkout request. */
@@ -130,13 +115,11 @@ public final class CheckoutCommands {
     /** Input for inspecting an expected evidence return. */
     public record InspectReturn(
             CheckoutId checkoutId,
-            ReturnInspectionOutcome outcome,
-            Optional<String> comment) {
-        /** Validates the checkout, outcome, and conditional comment. */
+            ReturnInspectionOutcome outcome) {
+        /** Validates the checkout and inspection outcome. */
         public InspectReturn {
             Objects.requireNonNull(checkoutId, "checkoutId");
             Objects.requireNonNull(outcome, "outcome");
-            comment = requireCommentForHeldOutcome(outcome, comment);
         }
     }
 
@@ -144,14 +127,12 @@ public final class CheckoutCommands {
     public record InspectUnplannedReturn(
             CheckoutId checkoutId,
             ReturnInspectionOutcome outcome,
-            String reason,
-            Optional<String> comment) {
-        /** Validates the checkout, outcome, reason, and conditional comment. */
+            String reason) {
+        /** Validates the checkout, outcome, and reason. */
         public InspectUnplannedReturn {
             Objects.requireNonNull(checkoutId, "checkoutId");
             Objects.requireNonNull(outcome, "outcome");
             reason = requireNonBlank(reason, "reason");
-            comment = requireCommentForHeldOutcome(outcome, comment);
         }
     }
 }
