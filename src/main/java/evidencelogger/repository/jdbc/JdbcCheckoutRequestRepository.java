@@ -81,6 +81,9 @@ public final class JdbcCheckoutRequestRepository implements CheckoutRequestRepos
 
     @Override
     public void insertPending(Connection connection, CheckoutRequestRecord request) {
+        if (request.status() != CheckoutRequestStatus.PENDING) {
+            throw new IllegalArgumentException("request must be pending");
+        }
         String sql = "INSERT INTO checkout_request ("
                 + SELECT_COLUMNS + ") VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
