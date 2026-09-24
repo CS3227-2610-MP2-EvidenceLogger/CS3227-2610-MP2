@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -37,12 +36,12 @@ class CheckoutContractsTest {
     }
 
     @Test
-    void inspectionRepresentsAnAbsentCommentExplicitly() {
+    void inspectionUsesTheOnlySupportedOutcome() {
         CheckoutId checkoutId = new CheckoutId(UUID.randomUUID());
         CheckoutCommands.InspectReturn command = new CheckoutCommands.InspectReturn(
-                checkoutId, ReturnInspectionOutcome.STORED, Optional.empty());
+                checkoutId, ReturnInspectionOutcome.STORED);
 
-        assertEquals(Optional.empty(), command.comment());
+        assertEquals(ReturnInspectionOutcome.STORED, command.outcome());
     }
 
     @Test
@@ -67,32 +66,7 @@ class CheckoutContractsTest {
                 new CheckoutCommands.CorrectExaminationNote(noteId, "Correction", "  "));
         assertThrows(IllegalArgumentException.class, () ->
                 new CheckoutCommands.InspectUnplannedReturn(
-                        checkoutId, ReturnInspectionOutcome.STORED, "  ", Optional.empty()));
-    }
-
-    @Test
-    void heldInspectionRequiresNonBlankComment() {
-        CheckoutId checkoutId = new CheckoutId(UUID.randomUUID());
-
-        assertThrows(IllegalArgumentException.class, () ->
-                new CheckoutCommands.InspectReturn(
-                        checkoutId, ReturnInspectionOutcome.HELD_FOR_REVIEW, Optional.empty()));
-        assertThrows(IllegalArgumentException.class, () ->
-                new CheckoutCommands.InspectReturn(
-                        checkoutId, ReturnInspectionOutcome.HELD_FOR_REVIEW, Optional.of("  ")));
-        assertThrows(IllegalArgumentException.class, () ->
-                new CheckoutCommands.InspectUnplannedReturn(
-                        checkoutId,
-                        ReturnInspectionOutcome.HELD_FOR_REVIEW,
-                        "Unexpected delivery",
-                        Optional.empty()));
-
-        CheckoutCommands.InspectReturn command = new CheckoutCommands.InspectReturn(
-                checkoutId,
-                ReturnInspectionOutcome.HELD_FOR_REVIEW,
-                Optional.of("Seal was damaged"));
-
-        assertEquals(Optional.of("Seal was damaged"), command.comment());
+                        checkoutId, ReturnInspectionOutcome.STORED, "  "));
     }
 
     @Test

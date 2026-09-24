@@ -6,7 +6,7 @@ EvidenceLogger is an offline Java desktop application for a small office to reco
 
 The one-week MVP uses simple lists and forms. Its complete flow is:
 
-`Register in storage → request checkout → approve or reject → handoff and acknowledge collection → add examination notes → initiate return → inspect → store or hold for review`
+`Register in storage → request checkout → approve or reject → handoff and acknowledge collection → add examination notes → initiate return → inspect → store`
 
 Complete and test this core flow first. Backup and restore are outside the project scope so the team can focus on completing and verifying the core workflow within one week.
 
@@ -16,7 +16,7 @@ A **checkout request** is an Investigator's request for permission to take one e
 
 | Role | Required MVP tasks |
 | --- | --- |
-| Evidence Custodian | Sign in; create cases and assign Investigators; register evidence with a generated unique reference, short description, and location selected from a small Custodian-maintained list; approve or reject checkout requests; record handoffs; inspect returns and put clean items back in storage or hold problematic items for review; read custody history. |
+| Evidence Custodian | Sign in; create cases and assign Investigators; register evidence with a generated unique reference, short description, and location selected from a small Custodian-maintained list; approve or reject checkout requests; record handoffs; inspect returns and put items back in storage; read custody history. |
 | Investigator | Sign in; view and search assigned cases and their evidence; submit checkout requests with purpose and expected return time; view request status; acknowledge collection; add examination notes to that checkout; initiate returns; read history for assigned cases. |
 
 Separate role views must be backed by service-layer authorization. Investigators cannot approve requests, register or relocate evidence, or edit history. They cannot access unassigned cases. The application records the active actor and time for custody-changing actions. Registration, decisions, handoffs, returns, and corrections create append-only history entries. A correction adds a new entry with a reason; previous entries remain unchanged. Notes belong to one checkout, and corrections to notes are appended. A return requires Custodian inspection before storage becomes available again.
@@ -27,7 +27,7 @@ Separate role views must be backed by service-layer authorization. Investigators
 2. A Custodian creates a case, assigns an Investigator, and registers two evidence items with distinct generated references and selected locations. Only assigned Investigators can see and search them.
 3. An assigned Investigator requests one item. A Custodian can approve or reject requests. Approval alone does not check out the item; a rejected request cannot be collected.
 4. Handoff plus Investigator acknowledgment records who gave and received the item and when. The item then shows as checked out, and another checkout attempt fails.
-5. The collecting Investigator adds a note and initiates return. The Custodian records inspection; the item shows either in storage or held for review.
+5. The collecting Investigator adds a note and initiates return. The Custodian records inspection; the item returns to storage.
 6. Authorized users can read ordered history. Attempts to edit or delete an old entry fail; a correction appears as a new entry.
 
 ## 3. Confirmed decisions
@@ -41,7 +41,7 @@ The team confirmed D-01 through D-07. The final column records whether any detai
 | D-03 | Evidence registration has exactly three user-supplied fields: case, short description, and Custodian-selected location from a small managed list. The application generates a stable unique reference; its presentation format is an implementation detail. No additional evidence fields are included in the MVP. The Custodian may add locations but may not rename or delete a location after it has been used. | None. |
 | D-04 | Approval and physical handoff are separate; collection includes Investigator acknowledgment. Requests do not expire automatically. An Investigator may withdraw a request only while it is pending. Each evidence item may have at most one pending or approved request. A fresh request is permitted whenever the evidence is `IN_STORAGE` and has no pending or approved request; prior terminal requests remain in history and do not block it. | None. |
 | D-05 | Notes attach to a specific checkout, require only note text, and are visible to the Custodian and Investigators assigned to the case. Corrections are appended. | None. |
-| D-06 | Every return requires Custodian inspection. The only inspection outcomes are `STORED` and `HELD_FOR_REVIEW`; `HELD_FOR_REVIEW` requires a comment. Handling a held item after review is outside this MVP. | None. |
+| D-06 | Every return requires Custodian inspection. The only inspection outcome is `STORED`. | None. |
 | D-07 | History is append-only; errors are corrected with an entry containing actor, time, and reason. Request rejection appears in the same case/evidence history view. The minimum event fields are defined in `specs/domain-rules.md`. | None. |
 
 ## 4. Approved implementation stack

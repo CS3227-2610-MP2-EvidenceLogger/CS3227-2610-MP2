@@ -36,19 +36,18 @@ class AuditEventDraftTest {
     }
 
     @Test
-    void unplannedHeldReturnPreservesReasonAndCommentSeparately() {
+    void unplannedStoredReturnPreservesReason() {
         AuditEventDraft draft = draft(
                 AuditEventType.UNPLANNED_RETURN_INSPECTED,
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
-                Optional.of(EvidenceCustodyState.HELD_FOR_REVIEW),
+                Optional.of(EvidenceCustodyState.IN_STORAGE),
                 Optional.of("Return was not initiated"),
-                Optional.of("Evidence seal was damaged"),
+                Optional.empty(),
                 Optional.empty());
 
         assertEquals(Optional.of("Return was not initiated"), draft.reason());
-        assertEquals(Optional.of("Evidence seal was damaged"), draft.comment());
     }
 
     @Test
