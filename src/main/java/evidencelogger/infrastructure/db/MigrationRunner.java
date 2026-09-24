@@ -154,6 +154,10 @@ public final class MigrationRunner {
 
     private void apply(Connection connection, Migration migration) throws SQLException {
         boolean originalAutoCommit = connection.getAutoCommit();
+        boolean originalForeignKeys = foreignKeysEnabled(connection);
+        if (originalForeignKeys) {
+            setForeignKeys(connection, false);
+        }
         connection.setAutoCommit(false);
         try {
             for (String sql : splitStatements(migration.script())) {
@@ -171,12 +175,38 @@ public final class MigrationRunner {
                 statement.setString(4, Instant.now(clock).toString());
                 statement.executeUpdate();
             }
+            verifyForeignKeys(connection);
             connection.commit();
         } catch (SQLException failure) {
             rollback(connection, failure);
             throw failure;
         } finally {
             connection.setAutoCommit(originalAutoCommit);
+            if (originalForeignKeys) {
+                setForeignKeys(connection, true);
+            }
+        }
+    }
+
+    private static boolean foreignKeysEnabled(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement();
+                ResultSet results = statement.executeQuery("PRAGMA foreign_keys")) {
+            return results.getBoolean(1);
+        }
+    }
+
+    private static void setForeignKeys(Connection connection, boolean enabled) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("PRAGMA foreign_keys = " + (enabled ? "ON" : "OFF"));
+        }
+    }
+
+    private static void verifyForeignKeys(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement();
+                ResultSet results = statement.executeQuery("PRAGMA foreign_key_check")) {
+            if (results.next()) {
+                throw new SQLException("Database migration introduced a foreign-key violation");
+            }
         }
     }
 

@@ -1,1 +1,2 @@
 V001__initial_schema.sql
+V002__align_checkout_persistence.sql

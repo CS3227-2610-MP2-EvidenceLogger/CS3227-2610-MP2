@@ -31,7 +31,6 @@ Read these sources before implementation:
 4. The current Gradle configuration and wrapper files to determine the commands and tasks that actually exist.
 5. The relevant current production and test code, including the checkout command contract, authorization helpers, transaction runner, audit writer, domain states, repositories, migrations, and neighboring transition implementations.
 6. `references/work-split-commit-plan.md` for ownership and shared-interface boundaries. Do not modify shared architecture used by another role without approval.
-7. `references/l3.pdf`, `references/l4.pdf`, and `references/l5.pdf` for the repository-guidance, focused-skill, checkable-definition-of-done, guardrail, traceability, and workflow-verification principles used by this procedure. These lectures guide execution; they do not define EvidenceLogger business behavior.
 
 The approved specifications and current code are authoritative over examples or assumptions. Do not infer a missing actor, state result, audit event, validation rule, or error behavior. Record unresolved behavior as an open question and continue only with independent work.
 

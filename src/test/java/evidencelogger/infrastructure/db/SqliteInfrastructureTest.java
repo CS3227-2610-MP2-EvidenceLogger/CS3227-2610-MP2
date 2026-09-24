@@ -53,13 +53,18 @@ class SqliteInfrastructureTest {
 
         try (Connection connection = connectionFactory.open();
                 Statement statement = connection.createStatement()) {
-            assertEquals(1, count(statement, "schema_migration"));
+            assertEquals(2, count(statement, "schema_migration"));
             assertEquals(3, count(statement, "user_account"));
             assertEquals(1, countWhere(statement, "user_account", "role = 'EVIDENCE_CUSTODIAN'"));
             assertEquals(2, countWhere(statement, "user_account", "role = 'INVESTIGATOR'"));
             assertEquals(3, countWhere(statement, "user_account", "typeof(password_hash) = 'blob'"));
             assertEquals(3, countWhere(statement, "user_account", "length(password_salt) = 16"));
             assertEquals(3, distinctCount(statement, "user_account", "hex(password_salt)"));
+            assertTrue(exists(
+                    statement,
+                    "sqlite_master",
+                    "type = 'table' AND name = 'return_inspection'"));
+            assertTrue(hasColumn(statement, "handoff", "reversal_reason"));
         }
     }
 
@@ -148,6 +153,18 @@ class SqliteInfrastructureTest {
         try (ResultSet results = statement.executeQuery(
                 "SELECT EXISTS(SELECT 1 FROM " + table + " WHERE " + condition + ")")) {
             return results.getBoolean(1);
+        }
+    }
+
+    private static boolean hasColumn(Statement statement, String table, String column)
+            throws SQLException {
+        try (ResultSet results = statement.executeQuery("PRAGMA table_info(" + table + ")")) {
+            while (results.next()) {
+                if (column.equals(results.getString("name"))) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 

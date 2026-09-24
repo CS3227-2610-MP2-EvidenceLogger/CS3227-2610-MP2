@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import evidencelogger.domain.CheckoutId;
 import evidencelogger.domain.ExaminationNoteId;
@@ -19,14 +20,15 @@ import evidencelogger.repository.checkout.NoteCorrectionRecord;
 
 /** SQLite/JDBC implementation of append-only examination-note persistence. */
 public final class JdbcExaminationNoteRepository implements ExaminationNoteRepository {
-    private static final String NOTE_COLUMNS = "note_id, checkout_id, author_id, text, created_at";
+    private static final String NOTE_COLUMNS = "id AS note_id, checkout_id, author_id, "
+            + "note_text AS text, created_at";
     private static final String CORRECTION_COLUMNS = "note_id, author_id, correction_text, "
             + "reason, created_at";
 
     @Override
     public Optional<ExaminationNoteRecord> findById(
             Connection connection, ExaminationNoteId noteId) {
-        String sql = "SELECT " + NOTE_COLUMNS + " FROM examination_note WHERE note_id = ?";
+        String sql = "SELECT " + NOTE_COLUMNS + " FROM examination_note WHERE id = ?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, noteId.toString());
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -41,7 +43,7 @@ public final class JdbcExaminationNoteRepository implements ExaminationNoteRepos
     public List<ExaminationNoteRecord> findForCheckout(
             Connection connection, CheckoutId checkoutId) {
         String sql = "SELECT " + NOTE_COLUMNS + " FROM examination_note"
-                + " WHERE checkout_id = ? ORDER BY created_at, note_id";
+                + " WHERE checkout_id = ? ORDER BY created_at, id";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, checkoutId.toString());
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -60,7 +62,7 @@ public final class JdbcExaminationNoteRepository implements ExaminationNoteRepos
     public List<NoteCorrectionRecord> findCorrections(
             Connection connection, ExaminationNoteId noteId) {
         String sql = "SELECT " + CORRECTION_COLUMNS + " FROM note_correction"
-                + " WHERE note_id = ? ORDER BY created_at, rowid";
+                + " WHERE note_id = ? ORDER BY created_at, id";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, noteId.toString());
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -77,7 +79,8 @@ public final class JdbcExaminationNoteRepository implements ExaminationNoteRepos
 
     @Override
     public void insert(Connection connection, ExaminationNoteRecord note) {
-        String sql = "INSERT INTO examination_note (" + NOTE_COLUMNS + ") VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO examination_note ("
+                + "id, checkout_id, author_id, note_text, created_at) VALUES (?, ?, ?, ?, ?)";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, note.noteId().toString());
             statement.setString(2, note.checkoutId().toString());
@@ -96,14 +99,15 @@ public final class JdbcExaminationNoteRepository implements ExaminationNoteRepos
 
     @Override
     public void appendCorrection(Connection connection, NoteCorrectionRecord correction) {
-        String sql = "INSERT INTO note_correction (" + CORRECTION_COLUMNS
-                + ") VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO note_correction (id, " + CORRECTION_COLUMNS
+                + ") VALUES (?, ?, ?, ?, ?, ?)";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, correction.noteId().toString());
-            statement.setString(2, correction.authorId().toString());
-            statement.setString(3, correction.correctionText());
-            statement.setString(4, correction.reason());
-            statement.setString(5, correction.createdAt().toString());
+            statement.setString(1, UUID.randomUUID().toString());
+            statement.setString(2, correction.noteId().toString());
+            statement.setString(3, correction.authorId().toString());
+            statement.setString(4, correction.correctionText());
+            statement.setString(5, correction.reason());
+            statement.setString(6, correction.createdAt().toString());
             statement.executeUpdate();
         } catch (SQLException exception) {
             if (isConstraintViolation(exception)) {

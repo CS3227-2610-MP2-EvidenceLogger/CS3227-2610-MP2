@@ -19,14 +19,14 @@ import evidencelogger.repository.checkout.CheckoutRequestRepository;
 
 /** SQLite/JDBC implementation of checkout-request persistence use cases. */
 public final class JdbcCheckoutRequestRepository implements CheckoutRequestRepository {
-    private static final String SELECT_COLUMNS = "request_id, evidence_id, requester_id, "
-            + "purpose, expected_return_at, status, submitted_at";
+    private static final String SELECT_COLUMNS = "id AS request_id, evidence_id, requester_id, "
+            + "purpose, expected_return_at, status, requested_at AS submitted_at";
 
     @Override
     public Optional<CheckoutRequestRecord> findById(
             Connection connection, CheckoutRequestId requestId) {
         String sql = "SELECT " + SELECT_COLUMNS
-                + " FROM checkout_request WHERE request_id = ?";
+                + " FROM checkout_request WHERE id = ?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, requestId.toString());
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -44,7 +44,7 @@ public final class JdbcCheckoutRequestRepository implements CheckoutRequestRepos
             Connection connection, EvidenceId evidenceId) {
         String sql = "SELECT " + SELECT_COLUMNS
                 + " FROM checkout_request WHERE evidence_id = ?"
-                + " AND status IN (?, ?) ORDER BY submitted_at, request_id LIMIT 1";
+                + " AND status IN (?, ?) ORDER BY requested_at, id LIMIT 1";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, evidenceId.toString());
             statement.setString(2, CheckoutRequestStatus.PENDING.name());
@@ -64,7 +64,7 @@ public final class JdbcCheckoutRequestRepository implements CheckoutRequestRepos
             Connection connection, EvidenceId evidenceId) {
         String sql = "SELECT " + SELECT_COLUMNS
                 + " FROM checkout_request WHERE evidence_id = ?"
-                + " ORDER BY submitted_at, request_id";
+                + " ORDER BY requested_at, id";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, evidenceId.toString());
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -85,7 +85,8 @@ public final class JdbcCheckoutRequestRepository implements CheckoutRequestRepos
             throw new IllegalArgumentException("request must be pending");
         }
         String sql = "INSERT INTO checkout_request ("
-                + SELECT_COLUMNS + ") VALUES (?, ?, ?, ?, ?, ?, ?)";
+                + "id, evidence_id, requester_id, purpose, expected_return_at, "
+                + "status, requested_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, request.requestId().toString());
             statement.setString(2, request.evidenceId().toString());
@@ -111,7 +112,7 @@ public final class JdbcCheckoutRequestRepository implements CheckoutRequestRepos
             CheckoutRequestStatus expected,
             CheckoutRequestStatus resulting) {
         String sql = "UPDATE checkout_request SET status = ?"
-                + " WHERE request_id = ? AND status = ?";
+                + " WHERE id = ? AND status = ?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, resulting.name());
             statement.setString(2, requestId.toString());
