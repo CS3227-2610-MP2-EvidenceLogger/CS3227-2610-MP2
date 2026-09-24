@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.Optional;
 
 import evidencelogger.domain.CheckoutRequestId;
+import evidencelogger.domain.CheckoutRequestStatus;
 import evidencelogger.domain.EvidenceCustodyState;
 import evidencelogger.domain.EvidenceId;
 import evidencelogger.domain.HandoffId;
@@ -55,17 +56,23 @@ public final class JdbcHandoffRepository implements HandoffRepository {
         String sql = "INSERT INTO handoff ("
                 + "id, request_id, evidence_id, custodian_id, recorded_at, "
                 + "acknowledged_at, reversed_at, reversal_reason)"
-                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                + " SELECT ?, r.id, r.evidence_id, ?, ?, ?, ?, ?"
+                + " FROM checkout_request r"
+                + " WHERE r.id = ? AND r.evidence_id = ? AND r.status = ?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, handoff.handoffId().toString());
-            statement.setString(2, handoff.requestId().toString());
-            statement.setString(3, handoff.evidenceId().toString());
-            statement.setString(4, handoff.custodianId().toString());
-            statement.setString(5, handoff.recordedAt().toString());
-            setInstant(statement, 6, handoff.acknowledgedAt());
-            setInstant(statement, 7, handoff.reversedAt());
-            setOptionalText(statement, 8, handoff.reversalReason());
-            statement.executeUpdate();
+            statement.setString(2, handoff.custodianId().toString());
+            statement.setString(3, handoff.recordedAt().toString());
+            setInstant(statement, 4, handoff.acknowledgedAt());
+            setInstant(statement, 5, handoff.reversedAt());
+            setOptionalText(statement, 6, handoff.reversalReason());
+            statement.setString(7, handoff.requestId().toString());
+            statement.setString(8, handoff.evidenceId().toString());
+            statement.setString(9, CheckoutRequestStatus.APPROVED.name());
+            if (statement.executeUpdate() != 1) {
+                throw new RepositoryException.Conflict(
+                        "handoff requires an approved request for the same evidence");
+            }
             if (!transitionEvidenceState(
                     connection,
                     handoff.evidenceId(),
@@ -85,10 +92,13 @@ public final class JdbcHandoffRepository implements HandoffRepository {
     @Override
     public boolean acknowledge(Connection connection, HandoffId handoffId, Instant acknowledgedAt) {
         String sql = "UPDATE handoff SET acknowledged_at = ?"
-                + " WHERE id = ? AND acknowledged_at IS NULL AND reversed_at IS NULL";
+                + " WHERE id = ? AND acknowledged_at IS NULL AND reversed_at IS NULL"
+                + " AND EXISTS (SELECT 1 FROM evidence_item e"
+                + " WHERE e.id = handoff.evidence_id AND e.custody_state = ?)";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, acknowledgedAt.toString());
             statement.setString(2, handoffId.toString());
+            statement.setString(3, EvidenceCustodyState.HANDOFF_AWAITING_ACK.name());
             return statement.executeUpdate() == 1;
         } catch (SQLException exception) {
             throw storageFailure("acknowledge handoff", exception);

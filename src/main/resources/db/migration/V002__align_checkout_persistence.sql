@@ -1,3 +1,33 @@
+CREATE TEMP TABLE v002_evidence_state_preflight (
+    custody_state TEXT CONSTRAINT v002_unsupported_held_evidence_state
+        CHECK (custody_state <> 'HELD_FOR_REVIEW')
+);
+
+INSERT INTO v002_evidence_state_preflight(custody_state)
+SELECT custody_state FROM evidence_item WHERE custody_state = 'HELD_FOR_REVIEW';
+
+DROP TABLE v002_evidence_state_preflight;
+
+CREATE TEMP TABLE v002_checkout_outcome_preflight (
+    return_outcome TEXT CONSTRAINT v002_unsupported_held_checkout_outcome
+        CHECK (return_outcome <> 'HELD_FOR_REVIEW')
+);
+
+INSERT INTO v002_checkout_outcome_preflight(return_outcome)
+SELECT return_outcome FROM checkout WHERE return_outcome = 'HELD_FOR_REVIEW';
+
+DROP TABLE v002_checkout_outcome_preflight;
+
+CREATE TEMP TABLE v002_handoff_reversal_preflight (
+    handoff_id TEXT CONSTRAINT v002_reversed_handoff_requires_reason
+        CHECK (handoff_id IS NULL)
+);
+
+INSERT INTO v002_handoff_reversal_preflight(handoff_id)
+SELECT id FROM handoff WHERE reversed_at IS NOT NULL;
+
+DROP TABLE v002_handoff_reversal_preflight;
+
 CREATE TABLE evidence_item_v002 (
     id TEXT PRIMARY KEY,
     case_id TEXT NOT NULL REFERENCES case_record(id),

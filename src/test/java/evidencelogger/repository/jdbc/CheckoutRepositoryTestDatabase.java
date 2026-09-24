@@ -69,6 +69,25 @@ final class CheckoutRepositoryTestDatabase {
         });
     }
 
+    void insertAdditionalEvidence(EvidenceId evidenceId) {
+        inTransaction(connection -> {
+            execute(connection, """
+                    INSERT INTO evidence_item(
+                        id, case_id, public_reference, description,
+                        storage_location_id, custody_state, registered_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    evidenceId.toString(),
+                    CASE_ID,
+                    "EV-" + evidenceId,
+                    "Additional checkout integration evidence",
+                    LOCATION_ID,
+                    EvidenceCustodyState.IN_STORAGE.name(),
+                    FIXTURE_TIME);
+            return null;
+        });
+    }
+
     private static void execute(Connection connection, String sql, String... values) {
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             for (int index = 0; index < values.length; index++) {

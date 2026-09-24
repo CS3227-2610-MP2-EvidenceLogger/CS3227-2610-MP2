@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Optional;
 
@@ -34,6 +36,8 @@ class JdbcHandoffAndCheckoutRepositoryTest {
             HandoffId.parse("00000000-0000-0000-0000-000000000522");
     private static final CheckoutId CHECKOUT_ID =
             CheckoutId.parse("00000000-0000-0000-0000-000000000523");
+    private static final EvidenceId OTHER_EVIDENCE_ID =
+            EvidenceId.parse("00000000-0000-0000-0000-000000000524");
 
     @TempDir
     Path temporaryDirectory;
@@ -125,6 +129,93 @@ class JdbcHandoffAndCheckoutRepositoryTest {
                         connection, checkout.checkoutId()).orElseThrow().evidenceState()));
         assertTrue(database.inTransactionBoolean(connection ->
                 checkouts.findActiveForEvidence(connection, checkout.evidenceId()).isEmpty()));
+        assertEquals(CheckoutRequestStatus.CONSUMED, requestStatus());
+    }
+
+    @Test
+    void handoffRequiresAnApprovedRequestForTheSameEvidence() {
+        database.insertAdditionalEvidence(OTHER_EVIDENCE_ID);
+        HandoffRecord mismatched = new HandoffRecord(
+                HANDOFF_ID,
+                REQUEST_ID,
+                OTHER_EVIDENCE_ID,
+                CheckoutRepositoryTestDatabase.CUSTODIAN_ID,
+                NOW,
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty());
+
+        assertThrows(RepositoryException.Conflict.class, () ->
+                database.inTransaction(connection -> {
+                    handoffs.insert(connection, mismatched);
+                    return null;
+                }));
+
+        assertEquals(EvidenceCustodyState.IN_STORAGE, evidenceState(OTHER_EVIDENCE_ID));
+        assertTrue(database.inTransactionBoolean(connection ->
+                handoffs.findById(connection, HANDOFF_ID).isEmpty()));
+    }
+
+    @Test
+    void handoffRejectsARequestThatIsNotApproved() {
+        database.inTransaction(connection -> {
+            assertTrue(requests.transitionStatus(
+                    connection,
+                    REQUEST_ID,
+                    CheckoutRequestStatus.APPROVED,
+                    CheckoutRequestStatus.PENDING));
+            return null;
+        });
+
+        assertThrows(RepositoryException.Conflict.class, () ->
+                database.inTransaction(connection -> {
+                    handoffs.insert(connection, handoff());
+                    return null;
+                }));
+
+        assertEquals(EvidenceCustodyState.IN_STORAGE, evidenceState());
+    }
+
+    @Test
+    void acknowledgmentRejectsStaleEvidenceCustodyState() {
+        database.inTransaction(connection -> {
+            handoffs.insert(connection, handoff());
+            setEvidenceState(connection, EVIDENCE_ID, EvidenceCustodyState.IN_STORAGE);
+            assertFalse(handoffs.acknowledge(
+                    connection, HANDOFF_ID, NOW.plusSeconds(60)));
+            return null;
+        });
+
+        assertTrue(database.inTransactionBoolean(connection ->
+                handoffs.findById(connection, HANDOFF_ID)
+                        .orElseThrow()
+                        .acknowledgedAt()
+                        .isEmpty()));
+    }
+
+    @Test
+    void failedCheckoutStateTransitionRollsBackRequestConsumptionAndCheckout() {
+        database.inTransaction(connection -> {
+            handoffs.insert(connection, handoff());
+            assertTrue(handoffs.acknowledge(
+                    connection, HANDOFF_ID, NOW.plusSeconds(30)));
+            return null;
+        });
+        database.inTransaction(connection -> {
+            setEvidenceState(connection, EVIDENCE_ID, EvidenceCustodyState.IN_STORAGE);
+            return null;
+        });
+
+        assertThrows(RepositoryException.Conflict.class, () ->
+                database.inTransaction(connection -> {
+                    checkouts.insert(connection, checkout());
+                    return null;
+                }));
+
+        assertEquals(CheckoutRequestStatus.APPROVED, requestStatus());
+        assertEquals(EvidenceCustodyState.IN_STORAGE, evidenceState());
+        assertTrue(database.inTransactionBoolean(connection ->
+                checkouts.findById(connection, CHECKOUT_ID).isEmpty()));
     }
 
     @Test
@@ -173,10 +264,14 @@ class JdbcHandoffAndCheckoutRepositoryTest {
     }
 
     private EvidenceCustodyState evidenceState() {
+        return evidenceState(EVIDENCE_ID);
+    }
+
+    private EvidenceCustodyState evidenceState(EvidenceId evidenceId) {
         return database.inTransaction(connection -> {
             try (var statement = connection.prepareStatement(
                     "SELECT custody_state FROM evidence_item WHERE id = ?")) {
-                statement.setString(1, EVIDENCE_ID.toString());
+                statement.setString(1, evidenceId.toString());
                 try (var results = statement.executeQuery()) {
                     return EvidenceCustodyState.valueOf(results.getString(1));
                 }
@@ -184,6 +279,34 @@ class JdbcHandoffAndCheckoutRepositoryTest {
                 throw new IllegalStateException(exception);
             }
         });
+    }
+
+    private CheckoutRequestStatus requestStatus() {
+        return database.inTransaction(connection -> {
+            try (var statement = connection.prepareStatement(
+                    "SELECT status FROM checkout_request WHERE id = ?")) {
+                statement.setString(1, REQUEST_ID.toString());
+                try (var results = statement.executeQuery()) {
+                    return CheckoutRequestStatus.valueOf(results.getString(1));
+                }
+            } catch (java.sql.SQLException exception) {
+                throw new IllegalStateException(exception);
+            }
+        });
+    }
+
+    private static void setEvidenceState(
+            Connection connection,
+            EvidenceId evidenceId,
+            EvidenceCustodyState state) {
+        try (var statement = connection.prepareStatement(
+                "UPDATE evidence_item SET custody_state = ? WHERE id = ?")) {
+            statement.setString(1, state.name());
+            statement.setString(2, evidenceId.toString());
+            statement.executeUpdate();
+        } catch (SQLException exception) {
+            throw new IllegalStateException(exception);
+        }
     }
 
     private static HandoffRecord handoff() {

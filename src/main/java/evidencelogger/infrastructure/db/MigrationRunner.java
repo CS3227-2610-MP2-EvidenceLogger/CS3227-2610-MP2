@@ -150,6 +150,14 @@ public final class MigrationRunner {
                 throw incompatible("Database migration checksum verification failed");
             }
         }
+        boolean missingPredecessor = false;
+        for (Migration migration : migrations) {
+            if (!applied.containsKey(migration.version())) {
+                missingPredecessor = true;
+            } else if (missingPredecessor) {
+                throw incompatible("Database migration history has a gap");
+            }
+        }
     }
 
     private void apply(Connection connection, Migration migration) throws SQLException {

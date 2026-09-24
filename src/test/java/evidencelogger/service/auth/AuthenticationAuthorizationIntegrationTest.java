@@ -124,6 +124,29 @@ class AuthenticationAuthorizationIntegrationTest {
                 authorization.requireCollectingInvestigator(CHECKOUT_ID));
     }
 
+    @Test
+    void connectionBoundAuthorizationUsesTheCallerOwnedTransaction() throws SQLException {
+        seedAuthorizationRelationships();
+        JdbcAuthorizationRepository authorization =
+                new JdbcAuthorizationRepository(connectionFactory);
+
+        try (Connection connection = connectionFactory.open()) {
+            connection.setAutoCommit(false);
+            try (PreparedStatement statement = connection.prepareStatement("""
+                    DELETE FROM case_assignment WHERE case_id = ? AND investigator_id = ?
+                    """)) {
+                statement.setString(1, CASE_ID.toString());
+                statement.setString(2, INVESTIGATOR_ID.toString());
+                statement.executeUpdate();
+            }
+
+            assertFalse(authorization.isAssigned(connection, CASE_ID, INVESTIGATOR_ID));
+            assertFalse(authorization.isCollectingInvestigator(
+                    connection, CHECKOUT_ID, INVESTIGATOR_ID));
+            connection.rollback();
+        }
+    }
+
     private AuthenticationService authenticationService() {
         return new AuthenticationService(
                 new JdbcUserAccountRepository(connectionFactory),

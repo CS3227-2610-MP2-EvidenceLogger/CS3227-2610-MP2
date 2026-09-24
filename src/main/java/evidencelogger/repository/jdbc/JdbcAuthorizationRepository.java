@@ -26,29 +26,57 @@ public final class JdbcAuthorizationRepository implements AuthorizationRepositor
     public boolean isAssigned(CaseId caseId, UserId investigatorId) {
         Objects.requireNonNull(caseId, "caseId");
         Objects.requireNonNull(investigatorId, "investigatorId");
-        return exists("""
-                SELECT 1
-                FROM case_assignment
-                WHERE case_id = ? AND investigator_id = ?
-                """, caseId.toString(), investigatorId.toString());
+        return withConnection(connection -> isAssigned(connection, caseId, investigatorId));
+    }
+
+    @Override
+    public boolean isAssigned(
+            Connection connection, CaseId caseId, UserId investigatorId) {
+        Objects.requireNonNull(connection, "connection");
+        Objects.requireNonNull(caseId, "caseId");
+        Objects.requireNonNull(investigatorId, "investigatorId");
+        return exists(connection, """
+                        SELECT 1
+                        FROM case_assignment
+                        WHERE case_id = ? AND investigator_id = ?
+                        """,
+                caseId.toString(), investigatorId.toString());
     }
 
     @Override
     public boolean isCollectingInvestigator(CheckoutId checkoutId, UserId investigatorId) {
         Objects.requireNonNull(checkoutId, "checkoutId");
         Objects.requireNonNull(investigatorId, "investigatorId");
-        return exists("""
-                SELECT 1
-                FROM checkout c
-                JOIN evidence_item e ON e.id = c.evidence_id
-                JOIN case_assignment a ON a.case_id = e.case_id
-                WHERE c.id = ? AND c.collector_id = ? AND a.investigator_id = ?
-                """, checkoutId.toString(), investigatorId.toString(), investigatorId.toString());
+        return withConnection(connection ->
+                isCollectingInvestigator(connection, checkoutId, investigatorId));
     }
 
-    private boolean exists(String sql, String... parameters) {
-        try (Connection connection = connectionFactory.open();
-                PreparedStatement statement = connection.prepareStatement(sql)) {
+    @Override
+    public boolean isCollectingInvestigator(
+            Connection connection, CheckoutId checkoutId, UserId investigatorId) {
+        Objects.requireNonNull(connection, "connection");
+        Objects.requireNonNull(checkoutId, "checkoutId");
+        Objects.requireNonNull(investigatorId, "investigatorId");
+        return exists(connection, """
+                        SELECT 1
+                        FROM checkout c
+                        JOIN evidence_item e ON e.id = c.evidence_id
+                        JOIN case_assignment a ON a.case_id = e.case_id
+                        WHERE c.id = ? AND c.collector_id = ? AND a.investigator_id = ?
+                        """,
+                checkoutId.toString(), investigatorId.toString(), investigatorId.toString());
+    }
+
+    private boolean withConnection(ConnectionQuery query) {
+        try (Connection connection = connectionFactory.open()) {
+            return query.execute(connection);
+        } catch (SQLException exception) {
+            throw storageFailure(exception);
+        }
+    }
+
+    private static boolean exists(Connection connection, String sql, String... parameters) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
             for (int index = 0; index < parameters.length; index++) {
                 statement.setString(index + 1, parameters[index]);
             }
@@ -56,8 +84,17 @@ public final class JdbcAuthorizationRepository implements AuthorizationRepositor
                 return results.next();
             }
         } catch (SQLException exception) {
-            throw new ServiceException.StorageFailure(
-                    "Authorization data could not be read", exception);
+            throw storageFailure(exception);
         }
+    }
+
+    private static ServiceException.StorageFailure storageFailure(SQLException exception) {
+        return new ServiceException.StorageFailure(
+                "Authorization data could not be read", exception);
+    }
+
+    @FunctionalInterface
+    private interface ConnectionQuery {
+        boolean execute(Connection connection);
     }
 }

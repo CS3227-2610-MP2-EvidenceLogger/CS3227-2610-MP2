@@ -21,16 +21,17 @@ public final class JdbcTransactionRunner implements TransactionRunner {
         try (Connection connection = connectionFactory.open()) {
             boolean originalAutoCommit = connection.getAutoCommit();
             connection.setAutoCommit(false);
+            T result;
             try {
-                T result = work.execute(connection);
+                result = work.execute(connection);
                 connection.commit();
-                return result;
-            } catch (RuntimeException | Error failure) {
+            } catch (SQLException | RuntimeException | Error failure) {
                 rollback(connection, failure);
+                restoreAutoCommit(connection, originalAutoCommit, failure);
                 throw failure;
-            } finally {
-                restoreAutoCommit(connection, originalAutoCommit);
             }
+            restoreAutoCommit(connection, originalAutoCommit);
+            return result;
         } catch (SQLException exception) {
             throw new ServiceException.StorageFailure(
                     "The database transaction could not be completed", exception);
@@ -49,6 +50,15 @@ public final class JdbcTransactionRunner implements TransactionRunner {
             throws SQLException {
         if (connection.getAutoCommit() != originalAutoCommit) {
             connection.setAutoCommit(originalAutoCommit);
+        }
+    }
+
+    private static void restoreAutoCommit(
+            Connection connection, boolean originalAutoCommit, Throwable failure) {
+        try {
+            restoreAutoCommit(connection, originalAutoCommit);
+        } catch (SQLException restoreFailure) {
+            failure.addSuppressed(restoreFailure);
         }
     }
 }

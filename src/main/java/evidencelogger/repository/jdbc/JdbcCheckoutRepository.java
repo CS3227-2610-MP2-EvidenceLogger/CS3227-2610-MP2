@@ -9,6 +9,7 @@ import java.util.Optional;
 
 import evidencelogger.domain.CheckoutId;
 import evidencelogger.domain.CheckoutRequestId;
+import evidencelogger.domain.CheckoutRequestStatus;
 import evidencelogger.domain.EvidenceCustodyState;
 import evidencelogger.domain.EvidenceId;
 import evidencelogger.domain.UserId;
@@ -61,20 +62,25 @@ public final class JdbcCheckoutRepository implements CheckoutRepository {
         }
         String sql = "INSERT INTO checkout ("
                 + "id, handoff_id, request_id, evidence_id, collector_id, collected_at)"
-                + " SELECT ?, h.id, ?, ?, ?, ? FROM handoff h"
-                + " WHERE h.request_id = ? AND h.evidence_id = ?"
+                + " SELECT ?, h.id, r.id, r.evidence_id, r.requester_id, ?"
+                + " FROM handoff h JOIN checkout_request r ON r.id = h.request_id"
+                + " WHERE r.id = ? AND r.evidence_id = ? AND r.requester_id = ?"
+                + " AND r.status = ? AND h.evidence_id = r.evidence_id"
                 + " AND h.acknowledged_at IS NOT NULL AND h.reversed_at IS NULL";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, checkout.checkoutId().toString());
-            statement.setString(2, checkout.requestId().toString());
-            statement.setString(3, checkout.evidenceId().toString());
-            statement.setString(4, checkout.collectorId().toString());
-            statement.setString(5, checkout.collectedAt().toString());
-            statement.setString(6, checkout.requestId().toString());
-            statement.setString(7, checkout.evidenceId().toString());
+            statement.setString(2, checkout.collectedAt().toString());
+            statement.setString(3, checkout.requestId().toString());
+            statement.setString(4, checkout.evidenceId().toString());
+            statement.setString(5, checkout.collectorId().toString());
+            statement.setString(6, CheckoutRequestStatus.APPROVED.name());
             if (statement.executeUpdate() != 1) {
                 throw new RepositoryException.Conflict(
-                        "checkout requires an acknowledged matching handoff");
+                        "checkout requires an approved request and acknowledged matching handoff");
+            }
+            if (!transitionRequestToConsumed(connection, checkout.requestId())) {
+                throw new RepositoryException.Conflict(
+                        "checkout request is not approved for collection");
             }
             if (!transitionEvidenceState(
                     connection,
@@ -189,6 +195,17 @@ public final class JdbcCheckoutRepository implements CheckoutRepository {
             statement.setString(1, resulting.name());
             statement.setString(2, evidenceId.toString());
             statement.setString(3, expected.name());
+            return statement.executeUpdate() == 1;
+        }
+    }
+
+    private static boolean transitionRequestToConsumed(
+            Connection connection, CheckoutRequestId requestId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE checkout_request SET status = ? WHERE id = ? AND status = ?")) {
+            statement.setString(1, CheckoutRequestStatus.CONSUMED.name());
+            statement.setString(2, requestId.toString());
+            statement.setString(3, CheckoutRequestStatus.APPROVED.name());
             return statement.executeUpdate() == 1;
         }
     }

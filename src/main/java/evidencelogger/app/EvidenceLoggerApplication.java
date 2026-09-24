@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import evidencelogger.infrastructure.logging.DiagnosticLogging;
 import evidencelogger.ui.common.ApplicationShell;
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -23,6 +24,7 @@ public final class EvidenceLoggerApplication extends Application {
 
     private ExecutorService databaseExecutor;
     private ApplicationComposition composition;
+    private DiagnosticLogging diagnosticLogging;
 
     @Override
     public void start(Stage primaryStage) {
@@ -35,6 +37,7 @@ public final class EvidenceLoggerApplication extends Application {
         try {
             ApplicationDataPaths paths = ApplicationDataPaths.resolveDefault();
             paths.prepare();
+            diagnosticLogging = DiagnosticLogging.start(paths.logs());
             composition = ApplicationComposition.start(paths.database(), Clock.systemUTC());
             databaseExecutor = createDatabaseExecutor();
             shell.showStatus("Database ready; sign-in services available");
@@ -62,6 +65,10 @@ public final class EvidenceLoggerApplication extends Application {
                 Thread.currentThread().interrupt();
             }
             databaseExecutor = null;
+        }
+        if (diagnosticLogging != null) {
+            diagnosticLogging.close();
+            diagnosticLogging = null;
         }
     }
 

@@ -98,6 +98,20 @@ class SqliteInfrastructureTest {
     }
 
     @Test
+    void migrationRejectsAppliedHistoryWithAMissingPredecessor() throws SQLException {
+        migrationRunner.migrate();
+        try (Connection connection = connectionFactory.open();
+                Statement statement = connection.createStatement()) {
+            statement.executeUpdate("DELETE FROM schema_migration WHERE version = 1");
+        }
+
+        ServiceException.StorageFailure failure = assertThrows(
+                ServiceException.StorageFailure.class, migrationRunner::migrate);
+
+        assertTrue(failure.getMessage().contains("gap"));
+    }
+
+    @Test
     void transactionRunnerCommitsSuccessAndRollsBackFailure() throws SQLException {
         migrationRunner.migrate();
         TransactionRunner runner = new JdbcTransactionRunner(connectionFactory);

@@ -2,6 +2,7 @@ package evidencelogger.infrastructure.db;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -76,6 +77,66 @@ class MigrationUpgradeIntegrationTest {
                     )
                     """));
         }
+    }
+
+    @Test
+    void versionOneUpgradeClearlyRejectsHeldEvidenceState() throws SQLException {
+        ConnectionFactory connections = new SqliteConnectionFactory(
+                temporaryDirectory.resolve("held-evidence.db"));
+        try (Connection connection = connections.open()) {
+            installVersionOne(connection);
+            insertVersionOneHeldEvidence(connection);
+        }
+
+        RuntimeException failure = assertThrows(RuntimeException.class, () ->
+                new MigrationRunner(connections, Clock.systemUTC()).migrate());
+
+        assertTrue(hasMessage(failure, "v002_unsupported_held_evidence_state"));
+        assertVersionOneRemainsApplied(connections);
+    }
+
+    @Test
+    void versionOneUpgradeClearlyRejectsHeldCheckoutOutcome() throws SQLException {
+        ConnectionFactory connections = new SqliteConnectionFactory(
+                temporaryDirectory.resolve("held-checkout.db"));
+        try (Connection connection = connections.open()) {
+            installVersionOne(connection);
+            insertVersionOneEvidence(connection);
+            try (Statement statement = connection.createStatement()) {
+                statement.executeUpdate("""
+                        UPDATE checkout SET completed_at = '2026-09-24T00:00:00Z',
+                            return_outcome = 'HELD_FOR_REVIEW'
+                        """);
+            }
+        }
+
+        RuntimeException failure = assertThrows(RuntimeException.class, () ->
+                new MigrationRunner(connections, Clock.systemUTC()).migrate());
+
+        assertTrue(hasMessage(failure, "v002_unsupported_held_checkout_outcome"));
+        assertVersionOneRemainsApplied(connections);
+    }
+
+    @Test
+    void versionOneUpgradeClearlyRejectsReversalWithoutReason() throws SQLException {
+        ConnectionFactory connections = new SqliteConnectionFactory(
+                temporaryDirectory.resolve("legacy-reversal.db"));
+        try (Connection connection = connections.open()) {
+            installVersionOne(connection);
+            insertVersionOneEvidence(connection);
+            try (Statement statement = connection.createStatement()) {
+                statement.executeUpdate("""
+                        UPDATE handoff SET acknowledged_at = NULL,
+                            reversed_at = '2026-09-23T01:04:00Z'
+                        """);
+            }
+        }
+
+        RuntimeException failure = assertThrows(RuntimeException.class, () ->
+                new MigrationRunner(connections, Clock.systemUTC()).migrate());
+
+        assertTrue(hasMessage(failure, "v002_reversed_handoff_requires_reason"));
+        assertVersionOneRemainsApplied(connections);
     }
 
     private static void installVersionOne(Connection connection) throws SQLException {
@@ -194,6 +255,54 @@ class MigrationUpgradeIntegrationTest {
                     )
                     """);
         }
+    }
+
+    private static void insertVersionOneHeldEvidence(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    INSERT INTO case_record(id, title, created_at) VALUES (
+                        '00000000-0000-0000-0000-000000000610',
+                        'Migration case', '2026-09-24T00:00:00Z'
+                    )
+                    """);
+            statement.executeUpdate("""
+                    INSERT INTO storage_location(id, name, created_at) VALUES (
+                        '00000000-0000-0000-0000-000000000611',
+                        'Migration locker', '2026-09-24T00:00:00Z'
+                    )
+                    """);
+            statement.executeUpdate("""
+                    INSERT INTO evidence_item(
+                        id, case_id, public_reference, description,
+                        storage_location_id, custody_state, registered_at
+                    ) VALUES (
+                        '00000000-0000-0000-0000-000000000600',
+                        '00000000-0000-0000-0000-000000000610',
+                        'EV-HELD', 'Unsupported held evidence',
+                        '00000000-0000-0000-0000-000000000611',
+                        'HELD_FOR_REVIEW', '2026-09-24T00:00:00Z'
+                    )
+                    """);
+        }
+    }
+
+    private static void assertVersionOneRemainsApplied(ConnectionFactory connections)
+            throws SQLException {
+        try (Connection connection = connections.open();
+                Statement statement = connection.createStatement()) {
+            assertEquals(1, scalar(statement, "SELECT count(*) FROM schema_migration"));
+            assertEquals(1, scalar(statement,
+                    "SELECT count(*) FROM schema_migration WHERE version = 1"));
+        }
+    }
+
+    private static boolean hasMessage(Throwable failure, String expectedText) {
+        for (Throwable current = failure; current != null; current = current.getCause()) {
+            if (String.valueOf(current.getMessage()).contains(expectedText)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static int scalar(Statement statement, String sql) throws SQLException {
