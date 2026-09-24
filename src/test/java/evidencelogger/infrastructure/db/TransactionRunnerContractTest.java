@@ -1,5 +1,6 @@
 package evidencelogger.infrastructure.db;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -69,5 +70,45 @@ class TransactionRunnerContractTest {
         assertTrue(rollbackCalled.get());
         assertTrue(autoCommit.get());
         assertInstanceOf(SQLException.class, failure.getCause());
+    }
+
+    @Test
+    void postCommitCleanupFailuresDoNotChangeTheSuccessfulOutcome() {
+        AtomicBoolean autoCommit = new AtomicBoolean(true);
+        AtomicBoolean committed = new AtomicBoolean();
+        AtomicBoolean closeAttempted = new AtomicBoolean();
+        InvocationHandler handler = (proxy, method, arguments) -> switch (method.getName()) {
+        case "getAutoCommit" -> autoCommit.get();
+        case "setAutoCommit" -> {
+            boolean requestedValue = (boolean) arguments[0];
+            if (requestedValue && committed.get()) {
+                throw new SQLException("injected restore failure");
+            }
+            autoCommit.set(requestedValue);
+            yield null;
+        }
+        case "commit" -> {
+            committed.set(true);
+            yield null;
+        }
+        case "rollback" -> null;
+        case "close" -> {
+            closeAttempted.set(true);
+            throw new SQLException("injected close failure");
+        }
+        case "isClosed" -> false;
+        default -> throw new UnsupportedOperationException(method.getName());
+        };
+        Connection connection = (Connection) Proxy.newProxyInstance(
+                Connection.class.getClassLoader(),
+                new Class<?>[] {Connection.class},
+                handler);
+        JdbcTransactionRunner runner = new JdbcTransactionRunner(() -> connection);
+
+        String result = runner.inTransaction(ignored -> "committed result");
+
+        assertEquals("committed result", result);
+        assertTrue(committed.get());
+        assertTrue(closeAttempted.get());
     }
 }

@@ -27,9 +27,7 @@ import evidencelogger.infrastructure.db.MigrationRunner;
 import evidencelogger.infrastructure.db.SqliteConnectionFactory;
 import evidencelogger.infrastructure.db.TransactionRunner;
 import evidencelogger.infrastructure.time.IdGenerator;
-import evidencelogger.service.ServiceException;
 import evidencelogger.service.auth.AuthenticatedSession;
-import evidencelogger.service.auth.SessionProvider;
 import evidencelogger.service.history.AuditEventDraft;
 
 class JdbcAuditEventWriterIntegrationTest {
@@ -45,34 +43,25 @@ class JdbcAuditEventWriterIntegrationTest {
     private ConnectionFactory connectionFactory;
     private TransactionRunner transactions;
     private JdbcAuditEventWriter writer;
+    private AuthenticatedSession actor;
 
     @BeforeEach
     void createDatabaseAndWriter() {
         connectionFactory = new SqliteConnectionFactory(temporaryDirectory.resolve("audit.db"));
         new MigrationRunner(connectionFactory, Clock.systemUTC()).migrate();
         transactions = new JdbcTransactionRunner(connectionFactory);
-        AuthenticatedSession currentSession = new AuthenticatedSession(
+        actor = new AuthenticatedSession(
                 ACTOR_ID, Role.EVIDENCE_CUSTODIAN, "Morgan Custodian");
-        SessionProvider sessions = new SessionProvider() {
-            @Override
-            public Optional<AuthenticatedSession> currentSession() {
-                return Optional.of(currentSession);
-            }
-
-            @Override
-            public AuthenticatedSession requireSession() {
-                return currentSession;
-            }
-        };
         IdGenerator<AuditEventId> eventIds = () -> EVENT_ID;
         writer = new JdbcAuditEventWriter(
-                sessions, Clock.fixed(EVENT_TIME, ZoneOffset.UTC), eventIds);
+                Clock.fixed(EVENT_TIME, ZoneOffset.UTC), eventIds);
     }
 
     @Test
-    void appendUsesActiveActorClockAndIdInsideCallerTransaction() throws SQLException {
+    void appendUsesAuthorizedActorClockAndIdInsideCallerTransaction() throws SQLException {
         AuditEventId actualId = transactions.inTransaction(
-                connection -> writer.append(connection, emptyDraft(AuditEventType.CASE_CREATED)));
+                connection -> writer.append(
+                        connection, actor, emptyDraft(AuditEventType.CASE_CREATED)));
 
         assertEquals(EVENT_ID, actualId);
         try (Connection connection = connectionFactory.open();
@@ -92,7 +81,7 @@ class JdbcAuditEventWriterIntegrationTest {
     @Test
     void laterFailureRollsBackTheAuditAppend() throws SQLException {
         assertThrows(IllegalStateException.class, () -> transactions.inTransaction(connection -> {
-            writer.append(connection, emptyDraft(AuditEventType.CASE_CREATED));
+            writer.append(connection, actor, emptyDraft(AuditEventType.CASE_CREATED));
             throw new IllegalStateException("injected failure after audit append");
         }));
 
@@ -104,26 +93,10 @@ class JdbcAuditEventWriterIntegrationTest {
     }
 
     @Test
-    void unauthenticatedAppendWritesNothing() throws SQLException {
-        IdGenerator<AuditEventId> eventIds = () -> EVENT_ID;
-        JdbcAuditEventWriter unauthenticatedWriter = new JdbcAuditEventWriter(
-                new SessionProvider() {
-                    @Override
-                    public Optional<AuthenticatedSession> currentSession() {
-                        return Optional.empty();
-                    }
-
-                    @Override
-                    public AuthenticatedSession requireSession() {
-                        throw new ServiceException.Unauthenticated("Sign in is required");
-                    }
-                },
-                Clock.fixed(EVENT_TIME, ZoneOffset.UTC),
-                eventIds);
-
-        assertThrows(ServiceException.Unauthenticated.class, () -> transactions.inTransaction(
-                connection -> unauthenticatedWriter.append(
-                        connection, emptyDraft(AuditEventType.CASE_CREATED))));
+    void missingAuthorizedActorWritesNothing() throws SQLException {
+        assertThrows(NullPointerException.class, () -> transactions.inTransaction(
+                connection -> writer.append(
+                        connection, null, emptyDraft(AuditEventType.CASE_CREATED))));
 
         try (Connection connection = connectionFactory.open();
                 Statement statement = connection.createStatement();
