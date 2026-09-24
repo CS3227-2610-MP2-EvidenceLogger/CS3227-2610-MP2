@@ -4,7 +4,7 @@
 Date: 2026-09-24
 Developer: thegrimbee
 Skill(s) used: skill-creator
-Commit: Not committed
+Commit: de0f65a1ede8a24c78edebaf490c02ec7605fbd5
 
 ## Task
 Create `.agents/skills/application-composition/SKILL.md` as a reusable procedure for incremental and final EvidenceLogger composition-root wiring, without modifying application code. Validate it with `quick_validate.py`, a normal-component forward test, a missing-dependency forward test, and the repository clean check.

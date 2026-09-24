@@ -4,7 +4,7 @@
 Date: 2026-09-24
 Developer: thegrimbee
 Skill(s) used: skill-creator
-Commit: Not committed
+Commit: de0f65a1ede8a24c78edebaf490c02ec7605fbd5
 
 ## Task
 Create and validate a reusable repository-local `sqlite-persistence-change` skill for EvidenceLogger persistence work, then forward-test it with repository-mapping and migration-upgrade scenarios without implementing either scenario.
