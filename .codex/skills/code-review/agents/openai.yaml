@@ -1,0 +1,7 @@
+interface:
+  display_name: "Code Review"
+  short_description: "Review EvidenceLogger code against specs"
+  default_prompt: "Use $code-review to review the EvidenceLogger codebase and write the current findings to _temp/CodeReview.md."
+
+policy:
+  allow_implicit_invocation: false
