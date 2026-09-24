@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="generator" content="MarkBind 6.0.2">
+    <meta name="viewport" content="width=device-width, initial-scale=1"> <link rel="stylesheet" href="/CS3227-2610-MP2/markbind/css/bootstrap.min.css"> <link rel="stylesheet" href="/CS3227-2610-MP2/markbind/fontawesome/css/all.min.css"> <link rel="stylesheet" href="/CS3227-2610-MP2/markbind/glyphicons/css/bootstrap-glyphicons.min.css"><link rel="stylesheet" href="/CS3227-2610-MP2/markbind/css/codeblock-dark.min.css"><link rel="stylesheet" href="/CS3227-2610-MP2/markbind/css/markbind.min.css"><link rel="stylesheet" href="/CS3227-2610-MP2/plugins/markbind-plugin-anchors/markbind-plugin-anchors.css"><link rel="stylesheet" href="/CS3227-2610-MP2/plugins/markbind-plugin-tree/markbind-plugin-tree.css">
+    
+  <link rel="stylesheet" href="/CS3227-2610-MP2/stylesheets/main.css">
+</head>
+<script>
+  const baseUrl = '/CS3227-2610-MP2'
+</script>
+<body >
+<div id="app"><!--[--><header sticky><div data-v-2dc82f13><nav class="navbar navbar-expand-md d-print-none navbar-dark bg-dark" data-v-2dc82f13><div class="container-fluid" data-v-2dc82f13><div class="navbar-left" data-v-2dc82f13><!--[--><a href="/CS3227-2610-MP2/index.html" title="Home" class="navbar-brand">Your Logo</a><!--]--></div><div class="navbar-default" data-v-2dc82f13><ul class="navbar-nav me-auto mt-2 mt-lg-0" data-v-2dc82f13><!--[--> <li><a href="/CS3227-2610-MP2/contents/topic1.html" class="nav-link">Topic 1</a></li> <li><a href="/CS3227-2610-MP2/contents/topic2.html" class="nav-link">Topic 2</a></li> <li class="dropdown nav-link" data-v-154e37d3><!--[--><a role="button" class="dropdown-toggle nav-link" data-bs-toggle="dropdown" data-v-154e37d3><!--[-->Topic 3<!--]--><span data-v-154e37d3></span></a><!--]--><!--[--><ul class="dropdown-menu" data-v-154e37d3><!--[--> <li><a href="/CS3227-2610-MP2/contents/topic3a.html" class="dropdown-item">Topic 3a</a></li> <li><a href="/CS3227-2610-MP2/contents/topic3b.html" class="dropdown-item">Topic 3b</a></li><!--]--></ul><!--]--></li> <!--]--></ul></div><ul class="navbar-nav navbar-right" data-v-2dc82f13><!--[--><li><form class="navbar-form"><div style="position:relative;" class="dropdown" data-v-00e26d0a><!--[--><input value="" data-bs-toggle="dropdown" type="text" class="form-control" placeholder="Search" autocomplete="off" data-v-00e26d0a><div class="form-control placeholder-div-hidden" data-v-00e26d0a>Search</div><!--]--><ul class="dropdown-menu search-dropdown-menu dropdown-menu-hidden dropdown-menu-end" data-v-00e26d0a><!--[--><!--]--></ul></div></form></li><!--]--></ul></div></nav><div style="display:none;" class="lower-navbar-container" data-v-2dc82f13><!--[--><!----><!----><!--]--></div></div></header> <div id="flex-body"><nav id="site-nav" data-v-6b1b63d2><!--[--><div class="site-nav-top"><div class="fw-bold mb-2" style="font-size:1.25rem;">Contents</div></div> <div class="nav-component slim-scroll"><div class="site-nav-root"><!--[--><ul class="site-nav-list site-nav-list-root" data-v-6b1b63d2><!--[--><li><div class="site-nav-default-list-item site-nav-list-item-0" onclick="handleSiteNavClick(this)"><a href="/CS3227-2610-MP2/index.html">Home 🏠</a></div></li> <li><div class="site-nav-default-list-item site-nav-list-item-0" onclick="handleSiteNavClick(this)"><a href="/CS3227-2610-MP2/contents/topic1.html">Topic 1</a></div></li> <li><div class="site-nav-default-list-item site-nav-list-item-0" onclick="handleSiteNavClick(this)"><a href="/CS3227-2610-MP2/contents/topic2.html">Topic 2</a></div></li> <li><div class="site-nav-default-list-item site-nav-list-item-0" onclick="handleSiteNavClick(this)">Topic 3 
+
+<div class="site-nav-dropdown-btn-container"><i class="site-nav-dropdown-btn-icon site-nav-rotate-icon" onclick="handleSiteNavClick(this.parentNode.parentNode, false); event.stopPropagation();"><span class="glyphicon glyphicon-menu-down" aria-hidden="true"></span></i></div></div><ul class="site-nav-dropdown-container site-nav-dropdown-container-open site-nav-list"><li><div class="site-nav-default-list-item site-nav-list-item-1" onclick="handleSiteNavClick(this)"><a href="/CS3227-2610-MP2/contents/topic3a.html">Topic 3a</a></div></li> <li><div class="site-nav-default-list-item site-nav-list-item-1" onclick="handleSiteNavClick(this)"><a href="/CS3227-2610-MP2/contents/topic3b.html">Topic 3b</a></div></li></ul></li><!--]--><!--v-if--></ul><!--]--></div></div><!--]--><!--v-if--></nav> <div id="content-wrapper"><div data-v-ef898034><nav aria-label="breadcrumb" class="breadcrumb-divider" data-v-ef898034><ol class="breadcrumb" data-v-ef898034><li class="notlink breadcrumb-marker" data-v-ef898034> ››   </li><!--[--><!--]--></ol></nav></div> <h1 id="evidencelogger-architecture">EvidenceLogger architecture<a class="fa fa-anchor" href="#evidencelogger-architecture" onclick="event.stopPropagation()"></a></h1> <p>This document describes the current implementation and the intended architecture approved in <code class="hljs inline no-lang">specs/architecture.md</code>, <code class="hljs inline no-lang">specs/product.md</code>, and <code class="hljs inline no-lang">specs/domain-rules.md</code>. The repository is currently a scaffold: the solid boxes in the diagram exist in <code class="hljs inline no-lang">src</code>; dashed boxes are planned package responsibilities with no concrete implementation yet.</p> <h2 id="architecture-diagram">Architecture diagram<a class="fa fa-anchor" href="#architecture-diagram" onclick="event.stopPropagation()"></a></h2> <pre><code class="hljs"><span>flowchart TB
+</span><span>    classDef present fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
+</span><span>    classDef planned fill:#fff8e1,stroke:#ef6c00,color:#7f3f00,stroke-dasharray: 5 5
+</span><span>    classDef external fill:#eceff1,stroke:#455a64,color:#263238
+</span><span>
+</span><span>    subgraph UI[JavaFX presentation]
+</span><span>        APP[evidencelogger.app\nApplication + Launcher]:::present
+</span><span>        SHELL[evidencelogger.ui.common\nApplicationShell]:::present
+</span><span>        LOGIN[evidencelogger.ui.login\nLogin views/controllers]:::planned
+</span><span>        CUST[evidencelogger.ui.custodian\nCustodian views/controllers]:::planned
+</span><span>        INV[evidencelogger.ui.investigator\nInvestigator views/controllers]:::planned
+</span><span>        SESSION[evidencelogger.app.session\nNavigation/session observation]:::planned
+</span><span>    end
+</span><span>
+</span><span>    subgraph SERVICES[Application services]
+</span><span>        AUTH[evidencelogger.service.auth\nAuthentication, session, authorization]:::present
+</span><span>        CASE[evidencelogger.service.casework\nCases, assignments, locations, evidence]:::planned
+</span><span>        CHECK[evidencelogger.service.checkout\nCheckout commands and queries]:::present
+</span><span>        HIST[evidencelogger.service.history\nAudit writing and history]:::present
+</span><span>        DTO[evidencelogger.service.dto\nCommands and read models]:::present
+</span><span>        ERR[evidencelogger.service\nTyped service failures]:::present
+</span><span>    end
+</span><span>
+</span><span>    DOMAIN[evidencelogger.domain\nTyped IDs, roles, states, domain rules]:::present
+</span><span>
+</span><span>    subgraph PERSISTENCE[Persistence boundary]
+</span><span>        REPO[evidencelogger.repository\nBusiness-oriented repository contracts]:::planned
+</span><span>        JDBC[evidencelogger.repository.jdbc\nJDBC SQL, mapping, constraint translation]:::planned
+</span><span>    end
+</span><span>
+</span><span>    subgraph INFRA[Infrastructure]
+</span><span>        DB[evidencelogger.infrastructure.db\nConnections, migrations, transactions]:::present
+</span><span>        SEC[evidencelogger.infrastructure.security\nPassword hashing/comparison]:::planned
+</span><span>        LOG[evidencelogger.infrastructure.logging\njava.util.logging diagnostics]:::planned
+</span><span>        TIME[evidencelogger.infrastructure.time\nClock and ID generation]:::present
+</span><span>    end
+</span><span>
+</span><span>    SQLITE[(Local SQLite database)]:::external
+</span><span>    FILES[(Per-user data directory\nDB + rotating logs)]:::external
+</span><span>
+</span><span>    APP --&gt; SHELL
+</span><span>    APP --&gt; LOGIN
+</span><span>    APP --&gt; DB
+</span><span>    APP --&gt; LOG
+</span><span>    SESSION --&gt; AUTH
+</span><span>    LOGIN --&gt; AUTH
+</span><span>    CUST --&gt; CASE
+</span><span>    CUST --&gt; CHECK
+</span><span>    CUST --&gt; HIST
+</span><span>    INV --&gt; CASE
+</span><span>    INV --&gt; CHECK
+</span><span>    INV --&gt; HIST
+</span><span>    SHELL --&gt; SESSION
+</span><span>    CASE --&gt; AUTH
+</span><span>    CHECK --&gt; AUTH
+</span><span>    HIST --&gt; AUTH
+</span><span>    CASE --&gt; DTO
+</span><span>    CHECK --&gt; DTO
+</span><span>    HIST --&gt; DTO
+</span><span>    AUTH --&gt; DOMAIN
+</span><span>    CASE --&gt; DOMAIN
+</span><span>    CHECK --&gt; DOMAIN
+</span><span>    HIST --&gt; DOMAIN
+</span><span>    CASE --&gt; REPO
+</span><span>    CHECK --&gt; REPO
+</span><span>    HIST --&gt; REPO
+</span><span>    CHECK --&gt; DB
+</span><span>    CASE --&gt; DB
+</span><span>    HIST --&gt; DB
+</span><span>    REPO --&gt; JDBC
+</span><span>    JDBC --&gt; DB
+</span><span>    DB --&gt; SQLITE
+</span><span>    DB --&gt; FILES
+</span><span>    LOG --&gt; FILES
+</span><span>    AUTH --&gt; SEC
+</span><span>    CASE --&gt; TIME
+</span><span>    CHECK --&gt; TIME
+</span><span>    HIST --&gt; TIME
+</span></code></pre><p>Legend: green solid nodes are represented by concrete source files today; amber dashed nodes are package-level responsibilities specified but not yet implemented. The diagram shows intended dependency direction, not a claim that every edge is currently wired.</p> <h2 id="package-responsibilities">Package responsibilities<a class="fa fa-anchor" href="#package-responsibilities" onclick="event.stopPropagation()"></a></h2> <div class="table-responsive"><table class="markbind-table table table-bordered table-striped"><thead><tr><th>Package</th> <th>Current contents</th> <th>Intended responsibility and boundary</th></tr></thead> <tbody><tr><td><code class="hljs inline no-lang">evidencelogger.app</code></td> <td><code class="hljs inline no-lang">EvidenceLoggerApplication</code>, <code class="hljs inline no-lang">EvidenceLoggerLauncher</code></td> <td>JavaFX lifecycle, object-graph composition, startup/shutdown, application-data path, migrations, and executor ownership. It must not contain workflow rules or SQL.</td></tr> <tr><td><code class="hljs inline no-lang">evidencelogger.app.session</code></td> <td>Package marker only</td> <td>Observe authentication state and drive role navigation. It must not decide case access or accept a UI-supplied actor identity.</td></tr> <tr><td><code class="hljs inline no-lang">evidencelogger.ui.common</code></td> <td><code class="hljs inline no-lang">ApplicationShell</code></td> <td>Shared code-built controls, async task support, validation display, navigation shell, and user-readable error presentation. It must not authorize or mutate domain state.</td></tr> <tr><td><code class="hljs inline no-lang">evidencelogger.ui.login</code></td> <td>Package marker only</td> <td>Sign-in view/controller using service contracts; no direct database access.</td></tr> <tr><td><code class="hljs inline no-lang">evidencelogger.ui.custodian</code></td> <td>Package marker only</td> <td>Custodian workflows: cases, assignments, locations, registration, request decisions, handoffs, returns, and history. It delegates rules to services.</td></tr> <tr><td><code class="hljs inline no-lang">evidencelogger.ui.investigator</code></td> <td>Package marker only</td> <td>Assigned-case search, requests, acknowledgment, notes, returns, and history. UI filtering is not the security boundary.</td></tr> <tr><td><code class="hljs inline no-lang">evidencelogger.service</code></td> <td><code class="hljs inline no-lang">ServiceException</code></td> <td>Persistence-neutral failures translated to readable UI messages: unauthenticated, forbidden, validation, invalid transition, conflict, not found, and storage failure.</td></tr> <tr><td><code class="hljs inline no-lang">evidencelogger.service.auth</code></td> <td>Session and authorization contracts/value record</td> <td>Authentication, password verification coordination, service-owned session issuance, role checks, and current-assignment checks.</td></tr> <tr><td><code class="hljs inline no-lang">evidencelogger.service.casework</code></td> <td>Package marker only</td> <td>Case creation, assignments, storage locations, evidence registration, and authorized case/evidence queries.</td></tr> <tr><td><code class="hljs inline no-lang">evidencelogger.service.checkout</code></td> <td>Command/query interfaces</td> <td>Request, decision, handoff, acknowledgment, note, return, inspection, and correction use cases. Implementations own use-case coordination, not JDBC transaction mechanics.</td></tr> <tr><td><code class="hljs inline no-lang">evidencelogger.service.history</code></td> <td>Audit draft and append writer contract</td> <td>Authorized ordered history and append-only corrections; audit writes use the caller-owned transaction connection.</td></tr> <tr><td><code class="hljs inline no-lang">evidencelogger.service.dto</code></td> <td>Checkout command records and read models</td> <td>Immutable, technology-neutral inputs/outputs between UI and services. No JavaFX or JDBC types.</td></tr> <tr><td><code class="hljs inline no-lang">evidencelogger.domain</code></td> <td>Typed IDs, role/state enums</td> <td>Persistence/UI-independent values and state rules for request and custody transitions.</td></tr> <tr><td><code class="hljs inline no-lang">evidencelogger.repository</code></td> <td>Package marker only</td> <td>Narrow, business-oriented persistence contracts. No authorization or generic CRUD surface.</td></tr> <tr><td><code class="hljs inline no-lang">evidencelogger.repository.jdbc</code></td> <td>Package marker only</td> <td>Prepared SQL, row mapping, conditional updates/inserts, and SQLite constraint translation. It must not commit or roll back.</td></tr> <tr><td><code class="hljs inline no-lang">evidencelogger.infrastructure.db</code></td> <td><code class="hljs inline no-lang">TransactionRunner</code> contract</td> <td>Connection factory, SQLite pragmas, migrations, and transaction boundaries. One service command equals one transaction.</td></tr> <tr><td><code class="hljs inline no-lang">evidencelogger.infrastructure.security</code></td> <td>Package marker only</td> <td>JDK-based salted password hashing and secure comparison; no credential logging.</td></tr> <tr><td><code class="hljs inline no-lang">evidencelogger.infrastructure.logging</code></td> <td>Package marker only</td> <td>Safe rotating diagnostic logs. These are separate from permanent append-only domain audit history.</td></tr> <tr><td><code class="hljs inline no-lang">evidencelogger.infrastructure.time</code></td> <td><code class="hljs inline no-lang">IdGenerator</code> contract</td> <td>Injectable clock and ID generation for production and deterministic tests; it does not decide domain outcomes.</td></tr></tbody></table></div><h2 id="key-architectural-rules">Key architectural rules<a class="fa fa-anchor" href="#key-architectural-rules" onclick="event.stopPropagation()"></a></h2> <ul><li>Dependencies point inward: UI → services → domain/repository contracts → JDBC/infrastructure → SQLite.</li> <li>Services enforce role and current assignment on direct calls; role-specific UI visibility is only presentation.</li> <li>Controllers pass typed command data. The service obtains actor, role, current state, and time from its session/database/infrastructure dependencies.</li> <li>Each successful custody change and its audit event(s) commit atomically. History and corrections are append-only.</li> <li>Approval does not check evidence out; handoff plus Investigator acknowledgment does. Custodian inspection is required before a return becomes available in storage.</li> <li>Attachments, backup/restore, case closure, release from hold, account administration, and other deferred features have no package or database component in the MVP.</li></ul> <h2 id="current-implementation-status">Current implementation status<a class="fa fa-anchor" href="#current-implementation-status" onclick="event.stopPropagation()"></a></h2> <p>Implemented today: JavaFX launcher/lifecycle, placeholder shell, typed domain identifiers/enums, checkout command/query contracts, DTO validation/read models, session/authorization contracts, typed service exceptions, audit draft/writer contracts, transaction runner contract, and ID-generator contract.</p> <p>Not implemented today: concrete authentication, casework and checkout services, repository interfaces/implementations, SQLite connection/migrations/schema resources, password hashing, logging configuration, role/login controllers, and the actual Custodian/Investigator screens. Consequently, the running application currently shows the placeholder shell rather than the complete workflow described by the specifications.</p></div> <nav id="page-nav" data-v-6b1b63d2><!--[--><div class="nav-component slim-scroll"></div><!--]--><!--v-if--></nav> <div class="scroll-top-button fa-lg d-print-none" style="display:none;bottom:2%;right:2%;position:fixed;" aria-hidden="true"><!--[--><i class="fas fa-arrow-circle-up"></i><!--]--></div></div> <footer><div class="text-center"><small>[Generated by <a href="https://markbind.org/">MarkBind 6.0.2</a>]</small></div></footer><!--]--></div>
+</body><script src="/CS3227-2610-MP2/markbind/js/bootstrap-utility.min.js"></script>
+<script src="/CS3227-2610-MP2/markbind/js/polyfill.min.js"></script>
+<script src="/CS3227-2610-MP2/markbind/js/vue.global.prod.min.js"></script>
+<script src="/CS3227-2610-MP2/markbind/js/markbind.min.js"></script>
+<script src="Architecture.page-vue-render.js"></script>
+<script>
+  MarkBind.setupWithSearch()
+</script>
+</html>

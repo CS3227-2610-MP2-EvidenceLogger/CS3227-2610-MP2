@@ -8,6 +8,17 @@
       "headingKeywords": {}
     },
     {
+      "src": "Architecture.md",
+      "headings": {
+        "evidencelogger-architecture": "EvidenceLogger architecture",
+        "architecture-diagram": "Architecture diagram",
+        "package-responsibilities": "Package responsibilities",
+        "key-architectural-rules": "Key architectural rules",
+        "current-implementation-status": "Current implementation status"
+      },
+      "headingKeywords": {}
+    },
+    {
       "src": "DeveloperGuide.md",
       "headings": {
         "evidencelogger-developer-guide": "EvidenceLogger Developer Guide"
