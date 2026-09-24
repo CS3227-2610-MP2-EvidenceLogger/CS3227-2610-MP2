@@ -48,7 +48,7 @@ class JdbcCheckoutRequestRepositoryTest {
         EvidenceId evidenceId = evidenceId();
         CheckoutRequestRecord first = request(evidenceId, NOW, CheckoutRequestStatus.PENDING);
         CheckoutRequestRecord second = request(
-                evidenceId, NOW.plusSeconds(1), CheckoutRequestStatus.REJECTED);
+                evidenceId, NOW.plusSeconds(1), CheckoutRequestStatus.PENDING);
 
         repository.insertPending(connection, first);
         repository.insertPending(connection, second);
