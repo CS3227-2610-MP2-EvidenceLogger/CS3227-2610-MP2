@@ -19,6 +19,7 @@ import evidencelogger.infrastructure.time.IdGenerator;
 import evidencelogger.repository.jdbc.JdbcAuditEventWriter;
 import evidencelogger.repository.jdbc.JdbcAuthorizationRepository;
 import evidencelogger.repository.jdbc.JdbcCaseworkRepository;
+import evidencelogger.repository.jdbc.JdbcCheckoutReadRepository;
 import evidencelogger.repository.jdbc.JdbcUserAccountRepository;
 import evidencelogger.service.auth.AuthenticationService;
 import evidencelogger.service.auth.AuthorizationService;
@@ -27,6 +28,8 @@ import evidencelogger.service.auth.SessionManager;
 import evidencelogger.service.casework.CaseworkCommandService;
 import evidencelogger.service.casework.CaseworkQueryService;
 import evidencelogger.service.casework.DefaultCaseworkService;
+import evidencelogger.service.checkout.CheckoutQueryService;
+import evidencelogger.service.checkout.DefaultCheckoutQueryService;
 import evidencelogger.service.history.AuditEventWriter;
 
 /** Explicit application-wide object graph created after successful migration. */
@@ -39,6 +42,7 @@ public final class ApplicationComposition implements AutoCloseable {
     private final AuditEventWriter auditEvents;
     private final CaseworkCommandService caseworkCommands;
     private final CaseworkQueryService caseworkQueries;
+    private final CheckoutQueryService checkoutQueries;
 
     private ApplicationComposition(
             ConnectionFactory connectionFactory,
@@ -48,7 +52,8 @@ public final class ApplicationComposition implements AutoCloseable {
             AuthorizationService authorization,
             AuditEventWriter auditEvents,
             CaseworkCommandService caseworkCommands,
-            CaseworkQueryService caseworkQueries) {
+            CaseworkQueryService caseworkQueries,
+            CheckoutQueryService checkoutQueries) {
         this.connectionFactory = connectionFactory;
         this.transactions = transactions;
         this.sessions = sessions;
@@ -57,6 +62,7 @@ public final class ApplicationComposition implements AutoCloseable {
         this.auditEvents = auditEvents;
         this.caseworkCommands = caseworkCommands;
         this.caseworkQueries = caseworkQueries;
+        this.checkoutQueries = checkoutQueries;
     }
 
     /** Runs migrations first, then creates the shared application service graph. */
@@ -91,6 +97,11 @@ public final class ApplicationComposition implements AutoCloseable {
                 caseIds,
                 locationIds,
                 evidenceIds);
+        CheckoutQueryService checkoutQueries = new DefaultCheckoutQueryService(
+                transactions,
+                authorization,
+                sessions,
+                new JdbcCheckoutReadRepository());
         return new ApplicationComposition(
                 connectionFactory,
                 transactions,
@@ -99,7 +110,8 @@ public final class ApplicationComposition implements AutoCloseable {
                 authorization,
                 auditEvents,
                 casework,
-                casework);
+                casework,
+                checkoutQueries);
     }
 
     /** Returns the shared connection factory. */
@@ -140,6 +152,11 @@ public final class ApplicationComposition implements AutoCloseable {
     /** Returns the authorized casework query service. */
     public CaseworkQueryService caseworkQueries() {
         return caseworkQueries;
+    }
+
+    /** Returns the authorized checkout query service. */
+    public CheckoutQueryService checkoutQueries() {
+        return checkoutQueries;
     }
 
     /** Clears the current session during deterministic application shutdown. */
