@@ -15,8 +15,8 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
@@ -57,13 +57,9 @@ public final class LoginView {
         message = new Label();
         message.setWrapText(true);
 
-        GridPane form = new GridPane();
-        form.setHgap(SPACING);
-        form.setVgap(SPACING);
-        form.addRow(0, new Label("Username"), username);
-        form.addRow(1, new Label("Password"), password);
-        form.add(signIn, 1, 2);
-        form.add(message, 1, 3);
+        VBox form = new VBox(SPACING, username, password, signIn, message);
+        form.setAlignment(Pos.CENTER);
+        form.setMaxWidth(280);
 
         root = new VBox(SPACING, title, subtitle, form);
         root.setAlignment(Pos.CENTER);
@@ -79,6 +75,7 @@ public final class LoginView {
     /** Shows a navigation or authentication message without diagnostic details. */
     public void showMessage(String text) {
         message.setText(Objects.requireNonNull(text, "text"));
+        message.setTextFill(text.isBlank() ? Color.BLACK : Color.FIREBRICK);
     }
 
     private void submit() {
@@ -87,6 +84,7 @@ public final class LoginView {
         password.clear();
         signIn.setDisable(true);
         message.setText("Signing in...");
+        message.setTextFill(Color.BLACK);
 
         databaseExecutor.execute(() -> {
             LoginController.Result result;
@@ -102,6 +100,7 @@ public final class LoginView {
                 signIn.setDisable(false);
                 if (!result.successful()) {
                     message.setText(result.message());
+                    message.setTextFill(Color.FIREBRICK);
                     password.requestFocus();
                     return;
                 }
@@ -113,6 +112,7 @@ public final class LoginView {
     private void finishWithMessage(String text) {
         signIn.setDisable(false);
         message.setText(text);
+        message.setTextFill(Color.FIREBRICK);
         password.requestFocus();
     }
 }

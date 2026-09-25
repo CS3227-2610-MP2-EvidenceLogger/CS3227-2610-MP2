@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.sql.Connection;
@@ -15,6 +17,8 @@ import java.sql.Statement;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
@@ -84,6 +88,21 @@ class ApplicationCompositionIntegrationTest {
                 ApplicationComposition.start(database, FIXED_CLOCK));
     }
 
+    @Test
+    void documentedDemoCredentialsAuthenticateAgainstTheSeededDatabase() throws IOException {
+        List<DemoAccount> accounts = readDocumentedDemoAccounts();
+
+        try (ApplicationComposition composition = ApplicationComposition.start(
+                temporaryDirectory.resolve("demo-accounts.db"), FIXED_CLOCK)) {
+            assertEquals(3, accounts.size());
+            for (DemoAccount account : accounts) {
+                AuthenticatedSession session = composition.authentication().signIn(
+                        account.username(), account.password().toCharArray());
+                assertEquals(account.role(), session.role());
+            }
+        }
+    }
+
     private static void insertTestAccount(ConnectionFactory connectionFactory)
             throws SQLException, GeneralSecurityException {
         byte[] salt = new byte[16];
@@ -115,5 +134,31 @@ class ApplicationCompositionIntegrationTest {
             statement.setBytes(8, hash);
             statement.executeUpdate();
         }
+    }
+
+    private static List<DemoAccount> readDocumentedDemoAccounts() throws IOException {
+        List<DemoAccount> accounts = new ArrayList<>();
+        for (String line : Files.readAllLines(Path.of("README.md"))) {
+            if (!line.startsWith("| Evidence Custodian |")
+                    && !line.startsWith("| Investigator |")) {
+                continue;
+            }
+            String[] cells = line.split("\\|");
+            Role role = cells[1].trim().equals("Evidence Custodian")
+                    ? Role.EVIDENCE_CUSTODIAN
+                    : Role.INVESTIGATOR;
+            accounts.add(new DemoAccount(
+                    removeCodeFormatting(cells[2]),
+                    removeCodeFormatting(cells[3]),
+                    role));
+        }
+        return List.copyOf(accounts);
+    }
+
+    private static String removeCodeFormatting(String cell) {
+        return cell.trim().replace("`", "");
+    }
+
+    private record DemoAccount(String username, String password, Role role) {
     }
 }

@@ -1,15 +1,18 @@
 package evidencelogger.app;
 
 import java.time.Clock;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import evidencelogger.domain.Role;
 import evidencelogger.infrastructure.logging.DiagnosticLogging;
 import evidencelogger.service.auth.AuthenticatedSession;
+import evidencelogger.service.auth.AuthenticationService;
 import evidencelogger.ui.common.ApplicationShell;
 import evidencelogger.ui.custodian.CaseworkController;
 import evidencelogger.ui.custodian.CustodianCaseworkView;
@@ -87,27 +90,54 @@ public final class EvidenceLoggerApplication extends Application {
 
     private void showLogin(ApplicationShell shell, String message) {
         LoginController controller = new LoginController(composition.authentication());
+        AuthenticatedRoleRouter router = new AuthenticatedRoleRouter(
+                composition.authentication(),
+                session -> showCustodianWorkspace(shell),
+                messageText -> showLogin(shell, messageText));
         LoginView login = new LoginView(
                 controller,
                 databaseExecutor,
-                session -> showAuthenticatedWorkspace(shell, controller, session));
+                router);
         login.showMessage(message);
         shell.showContent(login.view());
     }
 
-    private void showAuthenticatedWorkspace(
-            ApplicationShell shell,
-            LoginController loginController,
-            AuthenticatedSession session) {
-        if (session.role() == Role.EVIDENCE_CUSTODIAN) {
-            CaseworkController controller = new CaseworkController(
-                    composition.caseworkCommands(), composition.caseworkQueries());
-            shell.showContent(new CustodianCaseworkView(
-                    controller, databaseExecutor).view());
-            return;
+    private void showCustodianWorkspace(ApplicationShell shell) {
+        CaseworkController controller = new CaseworkController(
+                composition.caseworkCommands(), composition.caseworkQueries());
+        shell.showContent(new CustodianCaseworkView(
+                controller, databaseExecutor).view());
+    }
+
+    /** Routes authenticated sessions without making JavaFX navigation an authorization boundary. */
+    static final class AuthenticatedRoleRouter implements Consumer<AuthenticatedSession> {
+        private static final String INVESTIGATOR_UNAVAILABLE =
+                "Investigator workspace is not available in this build.";
+
+        private final AuthenticationService authentication;
+        private final Consumer<AuthenticatedSession> showCustodian;
+        private final Consumer<String> showLogin;
+
+        AuthenticatedRoleRouter(
+                AuthenticationService authentication,
+                Consumer<AuthenticatedSession> showCustodian,
+                Consumer<String> showLogin) {
+            this.authentication = Objects.requireNonNull(
+                    authentication, "authentication");
+            this.showCustodian = Objects.requireNonNull(
+                    showCustodian, "showCustodian");
+            this.showLogin = Objects.requireNonNull(showLogin, "showLogin");
         }
 
-        loginController.signOut();
-        showLogin(shell, "Investigator workspace is not available in this build.");
+        @Override
+        public void accept(AuthenticatedSession session) {
+            Objects.requireNonNull(session, "session");
+            if (session.role() == Role.EVIDENCE_CUSTODIAN) {
+                showCustodian.accept(session);
+                return;
+            }
+            authentication.signOut();
+            showLogin.accept(INVESTIGATOR_UNAVAILABLE);
+        }
     }
 }

@@ -7,6 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Optional;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +18,7 @@ import evidencelogger.domain.Role;
 import evidencelogger.domain.UserId;
 import evidencelogger.repository.UserAccountCredentials;
 import evidencelogger.repository.UserAccountRepository;
+import evidencelogger.service.ServiceException;
 import evidencelogger.service.auth.AuthenticationService;
 import evidencelogger.service.auth.SessionManager;
 
@@ -83,5 +87,51 @@ class LoginControllerTest {
         controller.signOut();
 
         assertFalse(sessions.currentSession().isPresent());
+    }
+
+    @Test
+    void storageFailureIsLoggedWithTheSameDiagnosticReferenceShownToTheUser() {
+        ServiceException.StorageFailure failure = new ServiceException.StorageFailure(
+                "Account data could not be read", new IllegalStateException("database unavailable"));
+        LoginController failingController = new LoginController(new AuthenticationService(
+                username -> {
+                    throw failure;
+                }, (password, algorithm, iterations, salt, hash) -> false,
+                sessions));
+        CapturingHandler handler = new CapturingHandler();
+        Logger logger = Logger.getLogger(LoginController.class.getName());
+        logger.addHandler(handler);
+        try {
+            LoginController.Result result = failingController.signIn(
+                    "custodian", "not logged".toCharArray());
+
+            assertFalse(result.successful());
+            assertTrue(result.message().startsWith(
+                    "Account data could not be read. Reference: "));
+            assertEquals(failure, handler.record.getThrown());
+            String reference = result.message().substring(result.message().indexOf("Reference: "));
+            assertTrue(handler.record.getMessage().contains(
+                    reference.replace("Reference: ", "operationId=")));
+            assertFalse(handler.record.getMessage().contains("custodian"));
+        } finally {
+            logger.removeHandler(handler);
+        }
+    }
+
+    private static final class CapturingHandler extends Handler {
+        private LogRecord record;
+
+        @Override
+        public void publish(LogRecord logRecord) {
+            record = logRecord;
+        }
+
+        @Override
+        public void flush() {
+        }
+
+        @Override
+        public void close() {
+        }
     }
 }
