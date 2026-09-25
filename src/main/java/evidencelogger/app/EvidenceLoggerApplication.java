@@ -1,21 +1,29 @@
 package evidencelogger.app;
 
 import java.time.Clock;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import evidencelogger.domain.Role;
 import evidencelogger.infrastructure.logging.DiagnosticLogging;
+import evidencelogger.service.auth.AuthenticatedSession;
+import evidencelogger.service.auth.AuthenticationService;
 import evidencelogger.ui.common.ApplicationShell;
+import evidencelogger.ui.custodian.CaseworkController;
+import evidencelogger.ui.custodian.CustodianCaseworkView;
+import evidencelogger.ui.login.LoginController;
+import evidencelogger.ui.login.LoginView;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 /**
- * Owns the JavaFX lifecycle and, as features are added, the application object
- * graph.
+ * Owns the JavaFX lifecycle, application object graph, and available role routing.
  */
 public final class EvidenceLoggerApplication extends Application {
     private static final double INITIAL_WIDTH = 960;
@@ -40,7 +48,7 @@ public final class EvidenceLoggerApplication extends Application {
             diagnosticLogging = DiagnosticLogging.start(paths.logs());
             composition = ApplicationComposition.start(paths.database(), Clock.systemUTC());
             databaseExecutor = createDatabaseExecutor();
-            shell.showStatus("Database ready; sign-in services available");
+            showLogin(shell, "");
         } catch (RuntimeException exception) {
             LOGGER.log(Level.SEVERE, "Application startup failed", exception);
             shell.showStatus("Startup failed. The local database could not be prepared.");
@@ -78,5 +86,58 @@ public final class EvidenceLoggerApplication extends Application {
             thread.setDaemon(true);
             return thread;
         });
+    }
+
+    private void showLogin(ApplicationShell shell, String message) {
+        LoginController controller = new LoginController(composition.authentication());
+        AuthenticatedRoleRouter router = new AuthenticatedRoleRouter(
+                composition.authentication(),
+                session -> showCustodianWorkspace(shell),
+                messageText -> showLogin(shell, messageText));
+        LoginView login = new LoginView(
+                controller,
+                databaseExecutor,
+                router);
+        login.showMessage(message);
+        shell.showContent(login.view());
+    }
+
+    private void showCustodianWorkspace(ApplicationShell shell) {
+        CaseworkController controller = new CaseworkController(
+                composition.caseworkCommands(), composition.caseworkQueries());
+        shell.showContent(new CustodianCaseworkView(
+                controller, databaseExecutor).view());
+    }
+
+    /** Routes authenticated sessions without making JavaFX navigation an authorization boundary. */
+    static final class AuthenticatedRoleRouter implements Consumer<AuthenticatedSession> {
+        private static final String INVESTIGATOR_UNAVAILABLE =
+                "Investigator workspace is not available in this build.";
+
+        private final AuthenticationService authentication;
+        private final Consumer<AuthenticatedSession> showCustodian;
+        private final Consumer<String> showLogin;
+
+        AuthenticatedRoleRouter(
+                AuthenticationService authentication,
+                Consumer<AuthenticatedSession> showCustodian,
+                Consumer<String> showLogin) {
+            this.authentication = Objects.requireNonNull(
+                    authentication, "authentication");
+            this.showCustodian = Objects.requireNonNull(
+                    showCustodian, "showCustodian");
+            this.showLogin = Objects.requireNonNull(showLogin, "showLogin");
+        }
+
+        @Override
+        public void accept(AuthenticatedSession session) {
+            Objects.requireNonNull(session, "session");
+            if (session.role() == Role.EVIDENCE_CUSTODIAN) {
+                showCustodian.accept(session);
+                return;
+            }
+            authentication.signOut();
+            showLogin.accept(INVESTIGATOR_UNAVAILABLE);
+        }
     }
 }

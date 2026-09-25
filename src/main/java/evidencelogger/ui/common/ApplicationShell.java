@@ -1,5 +1,7 @@
 package evidencelogger.ui.common;
 
+import java.util.Objects;
+
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
@@ -9,10 +11,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
-/**
- * Code-built top-level shell. Role navigation will replace the center content
- * after authentication is implemented.
- */
+/** Code-built top-level shell that hosts login and role-specific content. */
 public final class ApplicationShell {
     public static final String APPLICATION_NAME = "EvidenceLogger";
 
@@ -36,6 +35,11 @@ public final class ApplicationShell {
 
     public Parent view() {
         return root;
+    }
+
+    /** Replaces the shell content after startup or authentication. */
+    public void showContent(Parent content) {
+        root.setCenter(Objects.requireNonNull(content, "content"));
     }
 
     /** Replaces the user-readable startup status without exposing diagnostic details. */

@@ -98,7 +98,9 @@ public final class MigrationRunner {
     private static String checksum(String script) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest(script.getBytes(StandardCharsets.UTF_8)));
+            String canonicalScript = script.replace("\r\n", "\n").replace('\r', '\n');
+            return HexFormat.of().formatHex(
+                    digest.digest(canonicalScript.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 is unavailable", exception);
         }
