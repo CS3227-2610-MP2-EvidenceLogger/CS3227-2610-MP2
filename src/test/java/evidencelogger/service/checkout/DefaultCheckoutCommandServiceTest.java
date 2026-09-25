@@ -26,8 +26,8 @@ import evidencelogger.domain.CheckoutRequestId;
 import evidencelogger.domain.CheckoutRequestStatus;
 import evidencelogger.domain.EvidenceCustodyState;
 import evidencelogger.domain.EvidenceId;
-import evidencelogger.domain.HandoffId;
 import evidencelogger.domain.ExaminationNoteId;
+import evidencelogger.domain.HandoffId;
 import evidencelogger.domain.ReturnInspectionOutcome;
 import evidencelogger.domain.Role;
 import evidencelogger.domain.UserId;
@@ -35,14 +35,14 @@ import evidencelogger.infrastructure.db.TransactionRunner;
 import evidencelogger.infrastructure.time.IdGenerator;
 import evidencelogger.repository.EvidenceRecord;
 import evidencelogger.repository.EvidenceRepository;
-import evidencelogger.repository.checkout.CheckoutRequestRecord;
-import evidencelogger.repository.checkout.CheckoutRequestRepository;
 import evidencelogger.repository.checkout.CheckoutRecord;
 import evidencelogger.repository.checkout.CheckoutRepository;
-import evidencelogger.repository.checkout.HandoffRecord;
-import evidencelogger.repository.checkout.HandoffRepository;
+import evidencelogger.repository.checkout.CheckoutRequestRecord;
+import evidencelogger.repository.checkout.CheckoutRequestRepository;
 import evidencelogger.repository.checkout.ExaminationNoteRecord;
 import evidencelogger.repository.checkout.ExaminationNoteRepository;
+import evidencelogger.repository.checkout.HandoffRecord;
+import evidencelogger.repository.checkout.HandoffRepository;
 import evidencelogger.repository.checkout.NoteCorrectionRecord;
 import evidencelogger.repository.checkout.ReturnInspectionRecord;
 import evidencelogger.repository.checkout.ReturnInspectionRepository;
@@ -87,6 +87,10 @@ class DefaultCheckoutCommandServiceTest {
         notes = new FakeNoteRepository();
         inspections = new FakeInspectionRepository();
         audit = new FakeAuditWriter();
+        IdGenerator<CheckoutRequestId> requestIds = () -> REQUEST_ID;
+        IdGenerator<HandoffId> handoffIds = () -> HANDOFF_ID;
+        IdGenerator<CheckoutId> checkoutIds = () -> CHECKOUT_ID;
+        IdGenerator<ExaminationNoteId> noteIds = () -> NOTE_ID;
         service = new DefaultCheckoutCommandService(
                 new TransactionRunner() {
                     @Override
@@ -102,10 +106,10 @@ class DefaultCheckoutCommandServiceTest {
                 notes,
                 inspections,
                 audit,
-                () -> REQUEST_ID,
-                () -> HANDOFF_ID,
-                () -> CHECKOUT_ID,
-                () -> NOTE_ID,
+                requestIds,
+                handoffIds,
+                checkoutIds,
+                noteIds,
                 CLOCK);
     }
 
@@ -125,10 +129,10 @@ class DefaultCheckoutCommandServiceTest {
 
     @Test
     void submissionRejectsReturnTimeThatIsNotLaterThanSubmission() {
+        CheckoutCommands.SubmitRequest command = new CheckoutCommands.SubmitRequest(
+                EVIDENCE_ID, "Review item", NOW);
         ServiceException.ValidationFailure failure = assertThrows(
-                ServiceException.ValidationFailure.class,
-                () -> service.submitRequest(new CheckoutCommands.SubmitRequest(
-                        EVIDENCE_ID, "Review item", NOW)));
+                ServiceException.ValidationFailure.class, () -> service.submitRequest(command));
 
         assertTrue(failure.getMessage().contains("later"));
         assertTrue(requests.byId.isEmpty());

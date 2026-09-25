@@ -32,11 +32,11 @@ import evidencelogger.infrastructure.db.TransactionRunner;
 import evidencelogger.infrastructure.time.IdGenerator;
 import evidencelogger.repository.jdbc.JdbcAuditEventWriter;
 import evidencelogger.repository.jdbc.JdbcAuthorizationRepository;
-import evidencelogger.repository.jdbc.JdbcCheckoutRequestRepository;
 import evidencelogger.repository.jdbc.JdbcCheckoutRepository;
+import evidencelogger.repository.jdbc.JdbcCheckoutRequestRepository;
 import evidencelogger.repository.jdbc.JdbcEvidenceRepository;
-import evidencelogger.repository.jdbc.JdbcHandoffRepository;
 import evidencelogger.repository.jdbc.JdbcExaminationNoteRepository;
+import evidencelogger.repository.jdbc.JdbcHandoffRepository;
 import evidencelogger.repository.jdbc.JdbcReturnInspectionRepository;
 import evidencelogger.service.ServiceException;
 import evidencelogger.service.auth.AuthenticatedSession;
@@ -269,6 +269,13 @@ class DefaultCheckoutCommandServiceRollbackIntegrationTest {
         };
         JdbcAuthorizationRepository authorizationRepository =
                 new JdbcAuthorizationRepository(connections);
+        IdGenerator<evidencelogger.domain.CheckoutRequestId> requestIds = () -> REQUEST_ID;
+        IdGenerator<evidencelogger.domain.HandoffId> handoffIds = () ->
+                new evidencelogger.domain.HandoffId(UUID.randomUUID());
+        IdGenerator<evidencelogger.domain.CheckoutId> checkoutIds = () ->
+                new evidencelogger.domain.CheckoutId(UUID.randomUUID());
+        IdGenerator<evidencelogger.domain.ExaminationNoteId> noteIds = () ->
+                new evidencelogger.domain.ExaminationNoteId(UUID.randomUUID());
         return new DefaultCheckoutCommandService(
                 transactions,
                 new DefaultAuthorizationService(sessions, authorizationRepository),
@@ -279,10 +286,10 @@ class DefaultCheckoutCommandServiceRollbackIntegrationTest {
                 new JdbcExaminationNoteRepository(),
                 new JdbcReturnInspectionRepository(),
                 failingWriter,
-                () -> REQUEST_ID,
-                () -> new evidencelogger.domain.HandoffId(UUID.randomUUID()),
-                () -> new evidencelogger.domain.CheckoutId(UUID.randomUUID()),
-                () -> new evidencelogger.domain.ExaminationNoteId(UUID.randomUUID()),
+                requestIds,
+                handoffIds,
+                checkoutIds,
+                noteIds,
                 CLOCK);
     }
 

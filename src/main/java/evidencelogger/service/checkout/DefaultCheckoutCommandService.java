@@ -1,40 +1,22 @@
 package evidencelogger.service.checkout;
 
-import java.sql.Connection;
 import java.time.Clock;
-import java.time.Instant;
 import java.util.Objects;
-import java.util.Optional;
 
-import evidencelogger.domain.AuditEventType;
 import evidencelogger.domain.CheckoutId;
 import evidencelogger.domain.CheckoutRequestId;
-import evidencelogger.domain.CheckoutRequestStatus;
-import evidencelogger.domain.EvidenceCustodyState;
 import evidencelogger.domain.ExaminationNoteId;
 import evidencelogger.domain.HandoffId;
-import evidencelogger.domain.ReturnInspectionOutcome;
 import evidencelogger.infrastructure.db.TransactionRunner;
 import evidencelogger.infrastructure.time.IdGenerator;
-import evidencelogger.repository.EvidenceRecord;
 import evidencelogger.repository.EvidenceRepository;
-import evidencelogger.repository.RepositoryException;
-import evidencelogger.repository.checkout.CheckoutRequestRecord;
-import evidencelogger.repository.checkout.CheckoutRequestRepository;
-import evidencelogger.repository.checkout.CheckoutRecord;
 import evidencelogger.repository.checkout.CheckoutRepository;
-import evidencelogger.repository.checkout.HandoffRecord;
-import evidencelogger.repository.checkout.HandoffRepository;
-import evidencelogger.repository.checkout.ExaminationNoteRecord;
+import evidencelogger.repository.checkout.CheckoutRequestRepository;
 import evidencelogger.repository.checkout.ExaminationNoteRepository;
-import evidencelogger.repository.checkout.NoteCorrectionRecord;
-import evidencelogger.repository.checkout.ReturnInspectionRecord;
+import evidencelogger.repository.checkout.HandoffRepository;
 import evidencelogger.repository.checkout.ReturnInspectionRepository;
-import evidencelogger.service.ServiceException;
-import evidencelogger.service.auth.AuthenticatedSession;
 import evidencelogger.service.auth.AuthorizationService;
 import evidencelogger.service.dto.CheckoutCommands;
-import evidencelogger.service.history.AuditEventDraft;
 import evidencelogger.service.history.AuditEventWriter;
 
 /** Transactional checkout commands for request and decision workflow actions. */

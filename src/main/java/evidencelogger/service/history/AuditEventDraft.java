@@ -39,6 +39,27 @@ public record AuditEventDraft(
         Optional<AuditEventId> correctedEventId,
         Optional<ExaminationNoteId> correctedNoteId) {
 
+    /** Validates that optional event fields are represented explicitly. */
+    public AuditEventDraft {
+        Objects.requireNonNull(type, "type");
+        Objects.requireNonNull(caseId, "caseId");
+        Objects.requireNonNull(evidenceId, "evidenceId");
+        Objects.requireNonNull(requestId, "requestId");
+        Objects.requireNonNull(handoffId, "handoffId");
+        Objects.requireNonNull(checkoutId, "checkoutId");
+        Objects.requireNonNull(assignedInvestigatorId, "assignedInvestigatorId");
+        Objects.requireNonNull(storageLocationId, "storageLocationId");
+        Objects.requireNonNull(previousRequestStatus, "previousRequestStatus");
+        Objects.requireNonNull(resultingRequestStatus, "resultingRequestStatus");
+        Objects.requireNonNull(previousCustodyState, "previousCustodyState");
+        Objects.requireNonNull(resultingCustodyState, "resultingCustodyState");
+        Objects.requireNonNull(reason, "reason");
+        Objects.requireNonNull(comment, "comment");
+        Objects.requireNonNull(correctionText, "correctionText");
+        Objects.requireNonNull(correctedEventId, "correctedEventId");
+        Objects.requireNonNull(correctedNoteId, "correctedNoteId");
+    }
+
     /** Creates an event for a checkout-request status transition. */
     public static AuditEventDraft requestTransition(
             AuditEventType type,
@@ -187,24 +208,4 @@ public record AuditEventDraft(
                 Optional.empty());
     }
 
-    /** Validates that optional event fields are represented explicitly. */
-    public AuditEventDraft {
-        Objects.requireNonNull(type, "type");
-        Objects.requireNonNull(caseId, "caseId");
-        Objects.requireNonNull(evidenceId, "evidenceId");
-        Objects.requireNonNull(requestId, "requestId");
-        Objects.requireNonNull(handoffId, "handoffId");
-        Objects.requireNonNull(checkoutId, "checkoutId");
-        Objects.requireNonNull(assignedInvestigatorId, "assignedInvestigatorId");
-        Objects.requireNonNull(storageLocationId, "storageLocationId");
-        Objects.requireNonNull(previousRequestStatus, "previousRequestStatus");
-        Objects.requireNonNull(resultingRequestStatus, "resultingRequestStatus");
-        Objects.requireNonNull(previousCustodyState, "previousCustodyState");
-        Objects.requireNonNull(resultingCustodyState, "resultingCustodyState");
-        Objects.requireNonNull(reason, "reason");
-        Objects.requireNonNull(comment, "comment");
-        Objects.requireNonNull(correctionText, "correctionText");
-        Objects.requireNonNull(correctedEventId, "correctedEventId");
-        Objects.requireNonNull(correctedNoteId, "correctedNoteId");
-    }
 }

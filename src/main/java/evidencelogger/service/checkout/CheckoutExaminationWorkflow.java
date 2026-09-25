@@ -8,8 +8,8 @@ import java.util.Optional;
 
 import evidencelogger.domain.AuditEventType;
 import evidencelogger.domain.CheckoutId;
-import evidencelogger.domain.ExaminationNoteId;
 import evidencelogger.domain.EvidenceCustodyState;
+import evidencelogger.domain.ExaminationNoteId;
 import evidencelogger.infrastructure.time.IdGenerator;
 import evidencelogger.repository.EvidenceRecord;
 import evidencelogger.repository.EvidenceRepository;
