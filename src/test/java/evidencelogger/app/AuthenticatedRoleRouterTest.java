@@ -1,7 +1,6 @@
 package evidencelogger.app;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.util.Optional;
@@ -24,6 +23,7 @@ class AuthenticatedRoleRouterTest {
     private SessionManager sessions;
     private AuthenticationService authentication;
     private AtomicReference<AuthenticatedSession> custodianRoute;
+    private AtomicReference<AuthenticatedSession> investigatorRoute;
     private AtomicReference<String> loginRoute;
     private EvidenceLoggerApplication.AuthenticatedRoleRouter router;
 
@@ -35,9 +35,10 @@ class AuthenticatedRoleRouterTest {
                         true,
                 sessions);
         custodianRoute = new AtomicReference<>();
+        investigatorRoute = new AtomicReference<>();
         loginRoute = new AtomicReference<>();
         router = new EvidenceLoggerApplication.AuthenticatedRoleRouter(
-                authentication, custodianRoute::set, loginRoute::set);
+                authentication, custodianRoute::set, investigatorRoute::set, loginRoute::set);
     }
 
     @Test
@@ -53,17 +54,16 @@ class AuthenticatedRoleRouterTest {
     }
 
     @Test
-    void investigatorSessionIsClearedAndReturnsToLoginUntilWorkspaceExists() {
+    void investigatorSessionRoutesToInvestigatorWorkspaceAndRemainsActive() {
         AuthenticatedSession session = authentication.signIn(
                 "investigator", "accepted".toCharArray());
 
         router.accept(session);
 
         assertNull(custodianRoute.get());
-        assertFalse(sessions.currentSession().isPresent());
-        assertEquals(
-                "Investigator workspace is not available in this build.",
-                loginRoute.get());
+        assertEquals(session, investigatorRoute.get());
+        assertEquals(session, sessions.requireSession());
+        assertNull(loginRoute.get());
     }
 
     private static Optional<UserAccountCredentials> credentials(String username) {

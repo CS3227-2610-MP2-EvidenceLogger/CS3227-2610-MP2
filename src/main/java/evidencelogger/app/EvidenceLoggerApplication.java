@@ -16,6 +16,8 @@ import evidencelogger.service.auth.AuthenticationService;
 import evidencelogger.ui.common.ApplicationShell;
 import evidencelogger.ui.custodian.CaseworkController;
 import evidencelogger.ui.custodian.CustodianCaseworkView;
+import evidencelogger.ui.investigator.InvestigatorController;
+import evidencelogger.ui.investigator.InvestigatorWorkspaceView;
 import evidencelogger.ui.login.LoginController;
 import evidencelogger.ui.login.LoginView;
 import javafx.application.Application;
@@ -93,6 +95,7 @@ public final class EvidenceLoggerApplication extends Application {
         AuthenticatedRoleRouter router = new AuthenticatedRoleRouter(
                 composition.authentication(),
                 session -> showCustodianWorkspace(shell),
+                session -> showInvestigatorWorkspace(shell, session),
                 messageText -> showLogin(shell, messageText));
         LoginView login = new LoginView(
                 controller,
@@ -109,23 +112,37 @@ public final class EvidenceLoggerApplication extends Application {
                 controller, databaseExecutor).view());
     }
 
+    private void showInvestigatorWorkspace(ApplicationShell shell, AuthenticatedSession session) {
+        InvestigatorController controller = new InvestigatorController(
+                composition.caseworkQueries(),
+                composition.checkoutQueries(),
+                composition.checkoutCommands(),
+                composition.historyQueries());
+        shell.showContent(new InvestigatorWorkspaceView(
+                controller, databaseExecutor, session.displayName(), () -> {
+                    composition.authentication().signOut();
+                    showLogin(shell, "");
+                }).view());
+    }
+
     /** Routes authenticated sessions without making JavaFX navigation an authorization boundary. */
     static final class AuthenticatedRoleRouter implements Consumer<AuthenticatedSession> {
-        private static final String INVESTIGATOR_UNAVAILABLE =
-                "Investigator workspace is not available in this build.";
-
         private final AuthenticationService authentication;
         private final Consumer<AuthenticatedSession> showCustodian;
+        private final Consumer<AuthenticatedSession> showInvestigator;
         private final Consumer<String> showLogin;
 
         AuthenticatedRoleRouter(
                 AuthenticationService authentication,
                 Consumer<AuthenticatedSession> showCustodian,
+                Consumer<AuthenticatedSession> showInvestigator,
                 Consumer<String> showLogin) {
             this.authentication = Objects.requireNonNull(
                     authentication, "authentication");
             this.showCustodian = Objects.requireNonNull(
                     showCustodian, "showCustodian");
+            this.showInvestigator = Objects.requireNonNull(
+                    showInvestigator, "showInvestigator");
             this.showLogin = Objects.requireNonNull(showLogin, "showLogin");
         }
 
@@ -136,8 +153,12 @@ public final class EvidenceLoggerApplication extends Application {
                 showCustodian.accept(session);
                 return;
             }
+            if (session.role() == Role.INVESTIGATOR) {
+                showInvestigator.accept(session);
+                return;
+            }
             authentication.signOut();
-            showLogin.accept(INVESTIGATOR_UNAVAILABLE);
+            showLogin.accept("The signed-in role is not available.");
         }
     }
 }

@@ -113,6 +113,18 @@ class JdbcCheckoutReadRepositoryTest {
                 connection, UNASSIGNED_CASE_ID, Optional.of(ALEX_ID))).isEmpty());
         assertTrue(transactions.inTransaction(connection -> reads.findCheckout(
                 connection, ASSIGNED_CHECKOUT_ID, Optional.empty())).isPresent());
+
+        transactions.inTransaction(connection -> {
+            update(connection, "DELETE FROM case_assignment WHERE case_id = ? AND investigator_id = ?",
+                    ASSIGNED_CASE_ID.toString(), ALEX_ID.toString());
+            return null;
+        });
+        assertTrue(transactions.inTransaction(connection -> reads.findRequest(
+                connection, ASSIGNED_REQUEST_ID, Optional.of(ALEX_ID))).isEmpty());
+        assertTrue(transactions.inTransaction(connection -> reads.findCheckout(
+                connection, ASSIGNED_CHECKOUT_ID, Optional.of(ALEX_ID))).isEmpty());
+        assertEquals(List.of(), transactions.inTransaction(connection -> reads.listNotes(
+                connection, ASSIGNED_CHECKOUT_ID, Optional.of(ALEX_ID))));
     }
 
     private void seedFixture() {
