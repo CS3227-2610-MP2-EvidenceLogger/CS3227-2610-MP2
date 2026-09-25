@@ -7,15 +7,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import evidencelogger.domain.Role;
 import evidencelogger.infrastructure.logging.DiagnosticLogging;
+import evidencelogger.service.auth.AuthenticatedSession;
 import evidencelogger.ui.common.ApplicationShell;
+import evidencelogger.ui.custodian.CaseworkController;
+import evidencelogger.ui.custodian.CustodianCaseworkView;
+import evidencelogger.ui.login.LoginController;
+import evidencelogger.ui.login.LoginView;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 /**
- * Owns the JavaFX lifecycle and, as features are added, the application object
- * graph.
+ * Owns the JavaFX lifecycle, application object graph, and available role routing.
  */
 public final class EvidenceLoggerApplication extends Application {
     private static final double INITIAL_WIDTH = 960;
@@ -40,7 +45,7 @@ public final class EvidenceLoggerApplication extends Application {
             diagnosticLogging = DiagnosticLogging.start(paths.logs());
             composition = ApplicationComposition.start(paths.database(), Clock.systemUTC());
             databaseExecutor = createDatabaseExecutor();
-            shell.showStatus("Database ready; sign-in services available");
+            showLogin(shell, "");
         } catch (RuntimeException exception) {
             LOGGER.log(Level.SEVERE, "Application startup failed", exception);
             shell.showStatus("Startup failed. The local database could not be prepared.");
@@ -78,5 +83,31 @@ public final class EvidenceLoggerApplication extends Application {
             thread.setDaemon(true);
             return thread;
         });
+    }
+
+    private void showLogin(ApplicationShell shell, String message) {
+        LoginController controller = new LoginController(composition.authentication());
+        LoginView login = new LoginView(
+                controller,
+                databaseExecutor,
+                session -> showAuthenticatedWorkspace(shell, controller, session));
+        login.showMessage(message);
+        shell.showContent(login.view());
+    }
+
+    private void showAuthenticatedWorkspace(
+            ApplicationShell shell,
+            LoginController loginController,
+            AuthenticatedSession session) {
+        if (session.role() == Role.EVIDENCE_CUSTODIAN) {
+            CaseworkController controller = new CaseworkController(
+                    composition.caseworkCommands(), composition.caseworkQueries());
+            shell.showContent(new CustodianCaseworkView(
+                    controller, databaseExecutor).view());
+            return;
+        }
+
+        loginController.signOut();
+        showLogin(shell, "Investigator workspace is not available in this build.");
     }
 }
