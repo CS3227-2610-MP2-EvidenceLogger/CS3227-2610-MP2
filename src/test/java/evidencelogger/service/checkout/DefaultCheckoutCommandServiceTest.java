@@ -35,6 +35,7 @@ import evidencelogger.infrastructure.db.TransactionRunner;
 import evidencelogger.infrastructure.time.IdGenerator;
 import evidencelogger.repository.EvidenceRecord;
 import evidencelogger.repository.EvidenceRepository;
+import evidencelogger.repository.RepositoryException;
 import evidencelogger.repository.checkout.CheckoutRecord;
 import evidencelogger.repository.checkout.CheckoutRepository;
 import evidencelogger.repository.checkout.CheckoutRequestRecord;
@@ -147,6 +148,21 @@ class DefaultCheckoutCommandServiceTest {
         assertThrows(ServiceException.Forbidden.class, () -> service.submitRequest(
                 new CheckoutCommands.SubmitRequest(
                         EVIDENCE_ID, "Review item", NOW.plusSeconds(3600))));
+        assertTrue(requests.byId.isEmpty());
+        assertTrue(audit.events.isEmpty());
+    }
+
+    @Test
+    void repositoryReadFailureBecomesServiceStorageFailure() {
+        evidence.failure = new RepositoryException.StorageFailure(
+                "Unable to find evidence", new IllegalStateException("database unavailable"));
+
+        ServiceException.StorageFailure failure = assertThrows(
+                ServiceException.StorageFailure.class, () -> service.submitRequest(
+                        new CheckoutCommands.SubmitRequest(
+                                EVIDENCE_ID, "Review item", NOW.plusSeconds(3600))));
+
+        assertEquals("Unable to find evidence", failure.getMessage());
         assertTrue(requests.byId.isEmpty());
         assertTrue(audit.events.isEmpty());
     }
@@ -446,9 +462,13 @@ class DefaultCheckoutCommandServiceTest {
 
     private static final class FakeEvidenceRepository implements EvidenceRepository {
         private final Map<EvidenceId, EvidenceRecord> records = new HashMap<>();
+        private RepositoryException failure;
 
         @Override
         public Optional<EvidenceRecord> findById(Connection connection, EvidenceId evidenceId) {
+            if (failure != null) {
+                throw failure;
+            }
             return Optional.ofNullable(records.get(evidenceId));
         }
     }

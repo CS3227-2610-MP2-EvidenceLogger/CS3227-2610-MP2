@@ -1,2 +1,2 @@
-/** Evidence Custodian views and controllers. */
+/** Evidence Custodian views and presentation controllers. */
 package evidencelogger.ui.custodian;
