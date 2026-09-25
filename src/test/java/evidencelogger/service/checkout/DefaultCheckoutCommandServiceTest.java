@@ -33,7 +33,6 @@ import evidencelogger.domain.Role;
 import evidencelogger.domain.UserId;
 import evidencelogger.infrastructure.db.TransactionRunner;
 import evidencelogger.infrastructure.time.IdGenerator;
-import evidencelogger.repository.AuthorizationRepository;
 import evidencelogger.repository.EvidenceRecord;
 import evidencelogger.repository.EvidenceRepository;
 import evidencelogger.repository.checkout.CheckoutRequestRecord;
@@ -96,7 +95,6 @@ class DefaultCheckoutCommandServiceTest {
                     }
                 },
                 authorization,
-                new FakeAuthorizationRepository(authorization),
                 evidence,
                 requests,
                 handoffs,
@@ -738,6 +736,20 @@ class DefaultCheckoutCommandServiceTest {
 
         @Override
         public AuthenticatedSession requireAssignedInvestigator(
+                Connection connection, CaseId caseId) {
+            return requireAssignedInvestigator(caseId);
+        }
+
+        @Override
+        public void requireAssignedInvestigator(
+                Connection connection, CaseId caseId, UserId investigatorId) {
+            if (!assigned) {
+                throw new ServiceException.Forbidden("not assigned");
+            }
+        }
+
+        @Override
+        public AuthenticatedSession requireAssignedInvestigator(
                 CaseId caseId, BiPredicate<CaseId, UserId> assignmentCheck) {
             if (!assignmentCheck.test(caseId, session.userId())) {
                 throw new ServiceException.Forbidden("not assigned");
@@ -760,37 +772,14 @@ class DefaultCheckoutCommandServiceTest {
             }
             return session;
         }
-    }
-
-    private static final class FakeAuthorizationRepository implements AuthorizationRepository {
-        private final FakeAuthorization authorization;
-
-        private FakeAuthorizationRepository(FakeAuthorization authorization) {
-            this.authorization = authorization;
-        }
 
         @Override
-        public boolean isAssigned(CaseId caseId, UserId investigatorId) {
-            return authorization.assigned;
-        }
-
-        @Override
-        public boolean isAssigned(Connection connection, CaseId caseId, UserId investigatorId) {
-            return authorization.assigned;
-        }
-
-        @Override
-        public boolean isCollectingInvestigator(
-                evidencelogger.domain.CheckoutId checkoutId, UserId investigatorId) {
-            return false;
-        }
-
-        @Override
-        public boolean isCollectingInvestigator(
-                Connection connection,
-                evidencelogger.domain.CheckoutId checkoutId,
-                UserId investigatorId) {
-            return authorization.assigned;
+        public AuthenticatedSession requireCollectingInvestigator(
+                Connection connection, evidencelogger.domain.CheckoutId checkoutId) {
+            if (!assigned) {
+                throw new ServiceException.Forbidden("not a collector");
+            }
+            return session;
         }
     }
 }

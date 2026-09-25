@@ -272,7 +272,6 @@ class DefaultCheckoutCommandServiceRollbackIntegrationTest {
         return new DefaultCheckoutCommandService(
                 transactions,
                 new DefaultAuthorizationService(sessions, authorizationRepository),
-                authorizationRepository,
                 new JdbcEvidenceRepository(),
                 requests,
                 new JdbcHandoffRepository(),

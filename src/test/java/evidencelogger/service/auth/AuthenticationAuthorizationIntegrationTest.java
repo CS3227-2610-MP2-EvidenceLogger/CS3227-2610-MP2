@@ -146,14 +146,10 @@ class AuthenticationAuthorizationIntegrationTest {
 
             assertThrows(ServiceException.Forbidden.class, () ->
                     authorization.requireAssignedInvestigator(
-                            CASE_ID, (caseId, investigatorId) ->
-                                    authorizationRepository.isAssigned(
-                                            connection, caseId, investigatorId)));
+                            connection, CASE_ID));
             assertThrows(ServiceException.Forbidden.class, () ->
                     authorization.requireCollectingInvestigator(
-                            CHECKOUT_ID, (checkoutId, investigatorId) ->
-                                    authorizationRepository.isCollectingInvestigator(
-                                            connection, checkoutId, investigatorId)));
+                            connection, CHECKOUT_ID));
             connection.rollback();
         }
     }
