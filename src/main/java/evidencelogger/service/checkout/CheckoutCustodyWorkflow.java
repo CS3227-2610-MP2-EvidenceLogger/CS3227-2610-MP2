@@ -94,7 +94,7 @@ final class CheckoutCustodyWorkflow {
                 Optional.empty());
         try {
             handoffRepository.insert(connection, handoff);
-            auditEvents.append(connection, AuditEventDraft.handoffTransition(
+            auditEvents.append(connection, custodian, AuditEventDraft.handoffTransition(
                     AuditEventType.HANDOFF_RECORDED,
                     evidence.caseId(),
                     evidence.evidenceId(),
@@ -113,7 +113,7 @@ final class CheckoutCustodyWorkflow {
 
     void reverseHandoff(
             Connection connection, CheckoutCommands.ReverseHandoff command) {
-        authorization.requireCustodian();
+        AuthenticatedSession custodian = authorization.requireCustodian();
         HandoffRecord handoff = handoffRepository.findById(connection, command.handoffId())
                 .orElseThrow(() -> new ServiceException.NotFound("Handoff was not found"));
         CheckoutRequestRecord request = findRequest(connection, handoff.requestId());
@@ -134,7 +134,7 @@ final class CheckoutCustodyWorkflow {
                 throw new ServiceException.InvalidTransition(
                         "Handoff is no longer awaiting acknowledgment");
             }
-            auditEvents.append(connection, AuditEventDraft.handoffTransition(
+            auditEvents.append(connection, custodian, AuditEventDraft.handoffTransition(
                     AuditEventType.HANDOFF_REVERSED,
                     evidence.caseId(),
                     evidence.evidenceId(),
@@ -187,7 +187,7 @@ final class CheckoutCustodyWorkflow {
                     Optional.empty(),
                     Optional.empty(),
                     EvidenceCustodyState.CHECKED_OUT));
-            auditEvents.append(connection, AuditEventDraft.collectionAcknowledged(
+            auditEvents.append(connection, actor, AuditEventDraft.collectionAcknowledged(
                     evidence.caseId(),
                     evidence.evidenceId(),
                     request.requestId(),

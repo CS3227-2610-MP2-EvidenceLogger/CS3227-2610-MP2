@@ -261,9 +261,9 @@ class DefaultCheckoutCommandServiceRollbackIntegrationTest {
 
     private DefaultCheckoutCommandService serviceWithFailingAuditWriter() {
         JdbcAuditEventWriter delegate = new JdbcAuditEventWriter(
-                sessions, CLOCK, () -> new AuditEventId(UUID.randomUUID()));
-        AuditEventWriter failingWriter = (connection, event) -> {
-            delegate.append(connection, event);
+                CLOCK, () -> new AuditEventId(UUID.randomUUID()));
+        AuditEventWriter failingWriter = (connection, actor, event) -> {
+            delegate.append(connection, actor, event);
             throw new ServiceException.StorageFailure(
                     "Injected audit failure", new IllegalStateException("test failure"));
         };

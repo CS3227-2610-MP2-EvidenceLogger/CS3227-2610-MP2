@@ -78,7 +78,7 @@ final class CheckoutRequestWorkflow {
                 submittedAt);
         try {
             requestRepository.insertPending(connection, request);
-            auditEvents.append(connection, AuditEventDraft.requestTransition(
+            auditEvents.append(connection, actor, AuditEventDraft.requestTransition(
                     AuditEventType.REQUEST_SUBMITTED,
                     evidence.caseId(),
                     evidence.evidenceId(),
@@ -107,6 +107,7 @@ final class CheckoutRequestWorkflow {
         }
         transitionAndAudit(
                 connection,
+                actor,
                 request,
                 evidence,
                 CheckoutRequestStatus.WITHDRAWN,
@@ -117,7 +118,7 @@ final class CheckoutRequestWorkflow {
     }
 
     void approve(Connection connection, CheckoutCommands.ApproveRequest command) {
-        authorization.requireCustodian();
+        AuthenticatedSession actor = authorization.requireCustodian();
         CheckoutRequestRecord request = findRequest(connection, command.requestId());
         EvidenceRecord evidence = findEvidence(connection, request.evidenceId());
         if (request.status() != CheckoutRequestStatus.PENDING) {
@@ -132,6 +133,7 @@ final class CheckoutRequestWorkflow {
         assertActiveRequestIs(request, connection);
         transitionAndAudit(
                 connection,
+                actor,
                 request,
                 evidence,
                 CheckoutRequestStatus.APPROVED,
@@ -142,7 +144,7 @@ final class CheckoutRequestWorkflow {
     }
 
     void reject(Connection connection, CheckoutCommands.RejectRequest command) {
-        authorization.requireCustodian();
+        AuthenticatedSession actor = authorization.requireCustodian();
         CheckoutRequestRecord request = findRequest(connection, command.requestId());
         EvidenceRecord evidence = findEvidence(connection, request.evidenceId());
         if (request.status() != CheckoutRequestStatus.PENDING) {
@@ -151,6 +153,7 @@ final class CheckoutRequestWorkflow {
         }
         transitionAndAudit(
                 connection,
+                actor,
                 request,
                 evidence,
                 CheckoutRequestStatus.REJECTED,
@@ -161,7 +164,7 @@ final class CheckoutRequestWorkflow {
     }
 
     void cancel(Connection connection, CheckoutCommands.CancelApprovedRequest command) {
-        authorization.requireCustodian();
+        AuthenticatedSession actor = authorization.requireCustodian();
         CheckoutRequestRecord request = findRequest(connection, command.requestId());
         EvidenceRecord evidence = findEvidence(connection, request.evidenceId());
         if (request.status() != CheckoutRequestStatus.APPROVED) {
@@ -174,6 +177,7 @@ final class CheckoutRequestWorkflow {
         }
         transitionAndAudit(
                 connection,
+                actor,
                 request,
                 evidence,
                 CheckoutRequestStatus.CANCELLED,
@@ -208,6 +212,7 @@ final class CheckoutRequestWorkflow {
 
     private void transitionAndAudit(
             Connection connection,
+            AuthenticatedSession actor,
             CheckoutRequestRecord request,
             EvidenceRecord evidence,
             CheckoutRequestStatus resultingStatus,
@@ -224,7 +229,7 @@ final class CheckoutRequestWorkflow {
                 throw new ServiceException.InvalidTransition(
                         "Checkout request is no longer in the expected state");
             }
-            auditEvents.append(connection, AuditEventDraft.requestTransition(
+            auditEvents.append(connection, actor, AuditEventDraft.requestTransition(
                     eventType,
                     evidence.caseId(),
                     evidence.evidenceId(),

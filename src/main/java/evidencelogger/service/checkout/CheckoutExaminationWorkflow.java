@@ -74,7 +74,7 @@ final class CheckoutExaminationWorkflow {
                     actor.userId(),
                     command.text(),
                     Instant.now(clock)));
-            auditEvents.append(connection, AuditEventDraft.examinationNoteChange(
+            auditEvents.append(connection, actor, AuditEventDraft.examinationNoteChange(
                     AuditEventType.EXAMINATION_NOTE_ADDED,
                     evidence.caseId(),
                     evidence.evidenceId(),
@@ -109,7 +109,7 @@ final class CheckoutExaminationWorkflow {
                     command.correctionText(),
                     command.reason(),
                     Instant.now(clock)));
-            auditEvents.append(connection, AuditEventDraft.examinationNoteChange(
+            auditEvents.append(connection, actor, AuditEventDraft.examinationNoteChange(
                     AuditEventType.EXAMINATION_NOTE_CORRECTED,
                     evidence.caseId(),
                     evidence.evidenceId(),

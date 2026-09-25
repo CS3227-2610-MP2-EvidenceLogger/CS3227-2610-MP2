@@ -52,7 +52,8 @@ final class CheckoutReturnWorkflow {
     void initiate(Connection connection, CheckoutCommands.InitiateReturn command) {
         CheckoutRecord checkout = findCheckout(connection, command.checkoutId());
         EvidenceRecord evidence = findEvidence(connection, checkout.evidenceId());
-        authorization.requireCollectingInvestigator(connection, checkout.checkoutId());
+        AuthenticatedSession actor = authorization.requireCollectingInvestigator(
+                connection, checkout.checkoutId());
         if (checkout.returnInitiatedAt().isPresent()
                 || checkout.completedAt().isPresent()
                 || checkout.evidenceState() != EvidenceCustodyState.CHECKED_OUT
@@ -67,7 +68,7 @@ final class CheckoutReturnWorkflow {
                 throw new ServiceException.InvalidTransition(
                         "Checkout return has already been initiated");
             }
-            auditEvents.append(connection, AuditEventDraft.custodyTransition(
+            auditEvents.append(connection, actor, AuditEventDraft.custodyTransition(
                     AuditEventType.RETURN_INITIATED,
                     evidence.caseId(),
                     evidence.evidenceId(),
@@ -105,7 +106,7 @@ final class CheckoutReturnWorkflow {
                 throw new ServiceException.InvalidTransition(
                         "Return is no longer awaiting inspection");
             }
-            appendInspectionAudit(connection, evidence, checkout.checkoutId(),
+            appendInspectionAudit(connection, custodian, evidence, checkout.checkoutId(),
                     AuditEventType.RETURN_INSPECTED_STORED,
                     EvidenceCustodyState.HANDIN_AWAITING_ACK,
                     Optional.empty());
@@ -140,7 +141,7 @@ final class CheckoutReturnWorkflow {
                 throw new ServiceException.InvalidTransition(
                         "Checkout is no longer available for unplanned return");
             }
-            appendInspectionAudit(connection, evidence, checkout.checkoutId(),
+            appendInspectionAudit(connection, custodian, evidence, checkout.checkoutId(),
                     AuditEventType.UNPLANNED_RETURN_INSPECTED,
                     EvidenceCustodyState.CHECKED_OUT,
                     Optional.of(command.reason()));
@@ -151,12 +152,13 @@ final class CheckoutReturnWorkflow {
 
     private void appendInspectionAudit(
             Connection connection,
+            AuthenticatedSession actor,
             EvidenceRecord evidence,
             CheckoutId checkoutId,
             AuditEventType type,
             EvidenceCustodyState previousState,
             Optional<String> reason) {
-        auditEvents.append(connection, AuditEventDraft.custodyTransition(
+        auditEvents.append(connection, actor, AuditEventDraft.custodyTransition(
                 type,
                 evidence.caseId(),
                 evidence.evidenceId(),

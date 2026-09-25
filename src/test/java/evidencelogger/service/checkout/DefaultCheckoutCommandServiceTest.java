@@ -123,6 +123,7 @@ class DefaultCheckoutCommandServiceTest {
         assertEquals(CheckoutRequestStatus.PENDING, request.status());
         assertEquals(INVESTIGATOR_ID, request.requesterId());
         assertEquals(AuditEventType.REQUEST_SUBMITTED, audit.events.get(0).type());
+        assertEquals(INVESTIGATOR_ID, audit.actors.get(0).userId());
         assertEquals(Optional.of(CheckoutRequestStatus.PENDING),
                 audit.events.get(0).resultingRequestStatus());
     }
@@ -269,6 +270,7 @@ class DefaultCheckoutCommandServiceTest {
 
         assertEquals(HANDOFF_ID, result);
         assertEquals(AuditEventType.HANDOFF_RECORDED, audit.events.get(0).type());
+        assertEquals(authorization.custodianSession, audit.actors.get(0));
         assertEquals(EvidenceCustodyState.HANDOFF_AWAITING_ACK,
                 audit.events.get(0).resultingCustodyState().orElseThrow());
     }
@@ -499,10 +501,12 @@ class DefaultCheckoutCommandServiceTest {
 
     private static final class FakeAuditWriter implements AuditEventWriter {
         private final List<AuditEventDraft> events = new ArrayList<>();
+        private final List<AuthenticatedSession> actors = new ArrayList<>();
 
         @Override
         public evidencelogger.domain.AuditEventId append(
-                Connection connection, AuditEventDraft event) {
+                Connection connection, AuthenticatedSession actor, AuditEventDraft event) {
+            actors.add(actor);
             events.add(event);
             return new evidencelogger.domain.AuditEventId(UUID.randomUUID());
         }
