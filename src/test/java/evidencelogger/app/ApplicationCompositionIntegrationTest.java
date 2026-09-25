@@ -48,6 +48,8 @@ class ApplicationCompositionIntegrationTest {
         assertNotNull(composition.transactions());
         assertNotNull(composition.authorization());
         assertNotNull(composition.auditEvents());
+        assertNotNull(composition.caseworkCommands());
+        assertNotNull(composition.caseworkQueries());
         try (Connection connection = composition.connectionFactory().open();
                 Statement statement = connection.createStatement();
                 ResultSet results = statement.executeQuery("SELECT count(*) FROM schema_migration")) {

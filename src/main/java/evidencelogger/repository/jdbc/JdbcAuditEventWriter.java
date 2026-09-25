@@ -12,31 +12,28 @@ import evidencelogger.domain.AuditEventId;
 import evidencelogger.infrastructure.time.IdGenerator;
 import evidencelogger.service.ServiceException;
 import evidencelogger.service.auth.AuthenticatedSession;
-import evidencelogger.service.auth.SessionProvider;
 import evidencelogger.service.history.AuditEventDraft;
 import evidencelogger.service.history.AuditEventWriter;
 
-/** Appends audit events using the active actor and caller-owned transaction. */
+/** Appends audit events using the authorized actor and caller-owned transaction. */
 public final class JdbcAuditEventWriter implements AuditEventWriter {
-    private final SessionProvider sessions;
     private final Clock clock;
     private final IdGenerator<AuditEventId> eventIds;
 
-    /** Creates a writer with the shared session, clock, and event-ID source. */
+    /** Creates a writer with the shared clock and event-ID source. */
     public JdbcAuditEventWriter(
-            SessionProvider sessions,
             Clock clock,
             IdGenerator<AuditEventId> eventIds) {
-        this.sessions = Objects.requireNonNull(sessions, "sessions");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.eventIds = Objects.requireNonNull(eventIds, "eventIds");
     }
 
     @Override
-    public AuditEventId append(Connection connection, AuditEventDraft event) {
+    public AuditEventId append(
+            Connection connection, AuthenticatedSession actor, AuditEventDraft event) {
         Objects.requireNonNull(connection, "connection");
+        Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(event, "event");
-        AuthenticatedSession actor = sessions.requireSession();
         AuditEventId eventId = Objects.requireNonNull(eventIds.nextId(), "generated event ID");
         try (PreparedStatement statement = connection.prepareStatement("""
                 INSERT INTO audit_event(

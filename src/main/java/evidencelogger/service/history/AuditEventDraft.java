@@ -17,8 +17,8 @@ import evidencelogger.domain.StorageLocationId;
 import evidencelogger.domain.UserId;
 
 /**
- * Domain event data supplied by a service. The writer supplies the event ID,
- * current actor, actor role, and timestamp.
+ * Domain event data supplied by a service. The writer supplies the event ID and
+ * timestamp and persists the actor authorized by the service.
  */
 public record AuditEventDraft(
         AuditEventType type,
