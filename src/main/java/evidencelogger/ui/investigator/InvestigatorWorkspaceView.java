@@ -27,6 +27,8 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
@@ -191,13 +193,23 @@ public final class InvestigatorWorkspaceView {
                 });
 
         HBox requestActions = new HBox(8, withdrawRequest, acknowledgeCollection);
+        VBox myRequests = new VBox(8,
+                new Label("Select assigned evidence to request."), requestError, requestRow,
+                requests, requestActions);
+        myRequests.setPadding(new Insets(12));
+        VBox.setVgrow(requests, Priority.ALWAYS);
+        VBox activeCheckout = new VBox(8,
+                checkouts, notes, noteEditor, addNote, correctionText, correctionReason,
+                correctNote, initiateReturn);
+        activeCheckout.setPadding(new Insets(12));
+        VBox.setVgrow(checkouts, Priority.ALWAYS);
+        TabPane workflowTabs = new TabPane(
+                fixedTab("My Requests", myRequests),
+                fixedTab("Active Checkout", activeCheckout));
 
         VBox right = panel("Evidence Details & Request",
-                new Label("Select assigned evidence to request."), requestError, requestRow,
-                sectionHeading("My Requests"), requests, requestActions,
-                sectionHeading("Active Checkout"), checkouts, notes,
-                noteEditor, addNote, correctionText, correctionReason, correctNote,
-                initiateReturn, sectionHeading("Custody History"), history);
+                workflowTabs,
+                sectionHeading("Custody History"), history);
         GridPane grid = new GridPane();
         grid.setHgap(12);
         grid.setVgap(12);
@@ -235,6 +247,13 @@ public final class InvestigatorWorkspaceView {
         Label label = new Label(text);
         label.setFont(Font.font("System", FontWeight.BOLD, SECTION_HEADING_FONT_SIZE));
         return label;
+    }
+
+    /** Creates a Custodian-style fixed workflow tab. */
+    private static Tab fixedTab(String title, Parent content) {
+        Tab tab = new Tab(title, content);
+        tab.setClosable(false);
+        return tab;
     }
 
     /** Creates the two-line presentation for an assigned case. */
