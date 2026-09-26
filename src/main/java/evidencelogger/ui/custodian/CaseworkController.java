@@ -94,6 +94,21 @@ public final class CaseworkController {
                         location.storageLocationId())));
     }
 
+    /** Voids the selected erroneous registration while retaining its history. */
+    public Result<Void> voidEvidence(CaseworkViews.Evidence evidence, String reason) {
+        if (evidence == null) {
+            return Result.failure("Select an evidence item");
+        }
+        if (reason == null || reason.isBlank()) {
+            return Result.failure("Void reason is required");
+        }
+        return execute(() -> {
+            commands.voidEvidence(new CaseworkCommands.VoidEvidence(
+                    evidence.evidenceId(), reason));
+            return null;
+        });
+    }
+
     /** Searches cases within the signed-in actor's authorized scope. */
     public Result<List<CaseworkViews.Case>> searchCases(String searchText) {
         return execute(() -> queries.searchCases(searchText));
@@ -102,6 +117,14 @@ public final class CaseworkController {
     /** Searches evidence within the signed-in actor's authorized scope. */
     public Result<List<CaseworkViews.Evidence>> searchEvidence(String searchText) {
         return execute(() -> queries.searchEvidence(searchText));
+    }
+
+    /** Searches evidence and optionally includes retained voided registrations. */
+    public Result<List<CaseworkViews.Evidence>> searchEvidence(
+            String searchText, boolean includeVoided) {
+        return execute(() -> includeVoided
+                ? queries.searchEvidenceIncludingVoided(searchText)
+                : queries.searchEvidence(searchText));
     }
 
     /** Lists Investigators available for assignment. */

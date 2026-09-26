@@ -177,6 +177,83 @@ class DefaultCaseworkServiceIntegrationTest {
     }
 
     @Test
+    void custodianVoidsUnusedEvidenceAndRetainsItForExplicitSearch()
+            throws SQLException {
+        CaseId caseId = service.createCase(
+                new CaseworkCommands.CreateCase("Erroneous registration", ALEX_ID));
+        StorageLocationId locationId = service.addStorageLocation(
+                new CaseworkCommands.AddStorageLocation("Locker V"));
+        EvidenceId evidenceId = service.registerEvidence(
+                new CaseworkCommands.RegisterEvidence(caseId, "Wrong item", locationId));
+
+        service.voidEvidence(new CaseworkCommands.VoidEvidence(
+                evidenceId, "Registered the wrong physical item"));
+
+        assertEquals(List.of(), service.searchEvidence("Wrong item"));
+        List<CaseworkViews.Evidence> retained =
+                service.searchEvidenceIncludingVoided("Wrong item");
+        assertEquals(1, retained.size());
+        assertEquals(EvidenceCustodyState.VOIDED, retained.getFirst().custodyState());
+        assertEquals(EvidenceCustodyState.VOIDED, evidenceState(evidenceId));
+        assertVoidAudit(evidenceId, caseId, locationId,
+                "Registered the wrong physical item");
+    }
+
+    @Test
+    void evidenceVoidRejectsWrongActorBlankReasonPriorRequestAndRepeat()
+            throws SQLException {
+        CaseId caseId = service.createCase(
+                new CaseworkCommands.CreateCase("Void safeguards", ALEX_ID));
+        StorageLocationId locationId = service.addStorageLocation(
+                new CaseworkCommands.AddStorageLocation("Locker W"));
+        EvidenceId evidenceId = service.registerEvidence(
+                new CaseworkCommands.RegisterEvidence(caseId, "Safeguarded item", locationId));
+
+        assertThrows(ServiceException.ValidationFailure.class, () ->
+                service.voidEvidence(new CaseworkCommands.VoidEvidence(evidenceId, "   ")));
+        sessions.set(ALEX_ID, Role.INVESTIGATOR, "Alex Investigator");
+        assertThrows(ServiceException.Forbidden.class, () ->
+                service.voidEvidence(new CaseworkCommands.VoidEvidence(evidenceId, "Mistake")));
+        sessions.set(CUSTODIAN_ID, Role.EVIDENCE_CUSTODIAN, "Morgan Custodian");
+        insertPendingRequest(CheckoutRequestId.parse(
+                "00000000-0000-0000-0000-000000000504"), evidenceId);
+        assertThrows(ServiceException.Conflict.class, () ->
+                service.voidEvidence(new CaseworkCommands.VoidEvidence(evidenceId, "Mistake")));
+        assertEquals(EvidenceCustodyState.IN_STORAGE, evidenceState(evidenceId));
+        assertEquals(0, count(
+                "SELECT count(*) FROM audit_event WHERE event_type = 'EVIDENCE_VOIDED'"));
+
+        EvidenceId repeatEvidenceId = service.registerEvidence(
+                new CaseworkCommands.RegisterEvidence(caseId, "Repeat item", locationId));
+        service.voidEvidence(new CaseworkCommands.VoidEvidence(repeatEvidenceId, "Mistake"));
+        assertThrows(ServiceException.Conflict.class, () -> service.voidEvidence(
+                new CaseworkCommands.VoidEvidence(repeatEvidenceId, "Second attempt")));
+        assertEquals(1, count(
+                "SELECT count(*) FROM audit_event WHERE event_type = 'EVIDENCE_VOIDED'"));
+    }
+
+    @Test
+    void evidenceVoidRollsBackWhenAuditAppendFails() throws SQLException {
+        CaseId caseId = service.createCase(
+                new CaseworkCommands.CreateCase("Void rollback", ALEX_ID));
+        StorageLocationId locationId = service.addStorageLocation(
+                new CaseworkCommands.AddStorageLocation("Locker X"));
+        EvidenceId evidenceId = service.registerEvidence(
+                new CaseworkCommands.RegisterEvidence(caseId, "Rollback item", locationId));
+        AuditEventWriter failingWriter = (connection, actor, event) -> {
+            throw new IllegalStateException("injected audit failure");
+        };
+        DefaultCaseworkService failingService = newService(failingWriter);
+
+        assertThrows(IllegalStateException.class, () -> failingService.voidEvidence(
+                new CaseworkCommands.VoidEvidence(evidenceId, "Mistake")));
+
+        assertEquals(EvidenceCustodyState.IN_STORAGE, evidenceState(evidenceId));
+        assertEquals(0, count(
+                "SELECT count(*) FROM audit_event WHERE event_type = 'EVIDENCE_VOIDED'"));
+    }
+
+    @Test
     void assignmentRemovalRejectsActiveRequestAndUninspectedCheckout()
             throws SQLException {
         CaseId caseId = service.createCase(
@@ -297,6 +374,48 @@ class DefaultCaseworkServiceIntegrationTest {
                 assertEquals(locationId.toString(), results.getString("storage_location_id"));
                 assertEquals(EvidenceCustodyState.IN_STORAGE.name(),
                         results.getString("resulting_custody_state"));
+            }
+        }
+    }
+
+    private void assertVoidAudit(
+            EvidenceId evidenceId,
+            CaseId caseId,
+            StorageLocationId locationId,
+            String reason) throws SQLException {
+        try (Connection connection = connectionFactory.open();
+                PreparedStatement statement = connection.prepareStatement("""
+                        SELECT actor_id, actor_role, event_time, case_id,
+                               storage_location_id, previous_custody_state,
+                               resulting_custody_state, reason
+                        FROM audit_event
+                        WHERE event_type = 'EVIDENCE_VOIDED' AND evidence_id = ?
+                        """)) {
+            statement.setString(1, evidenceId.toString());
+            try (ResultSet results = statement.executeQuery()) {
+                results.next();
+                assertEquals(CUSTODIAN_ID.toString(), results.getString("actor_id"));
+                assertEquals(Role.EVIDENCE_CUSTODIAN.name(), results.getString("actor_role"));
+                assertEquals(NOW.toString(), results.getString("event_time"));
+                assertEquals(caseId.toString(), results.getString("case_id"));
+                assertEquals(locationId.toString(), results.getString("storage_location_id"));
+                assertEquals(EvidenceCustodyState.IN_STORAGE.name(),
+                        results.getString("previous_custody_state"));
+                assertEquals(EvidenceCustodyState.VOIDED.name(),
+                        results.getString("resulting_custody_state"));
+                assertEquals(reason, results.getString("reason"));
+            }
+        }
+    }
+
+    private EvidenceCustodyState evidenceState(EvidenceId evidenceId) throws SQLException {
+        try (Connection connection = connectionFactory.open();
+                PreparedStatement statement = connection.prepareStatement(
+                        "SELECT custody_state FROM evidence_item WHERE id = ?")) {
+            statement.setString(1, evidenceId.toString());
+            try (ResultSet results = statement.executeQuery()) {
+                results.next();
+                return EvidenceCustodyState.valueOf(results.getString(1));
             }
         }
     }

@@ -9,10 +9,10 @@
 EvidenceLogger is an offline JavaFX desktop application for fictional physical-evidence custody
 workflows.
 
-The current A4 build includes database-backed sign-in and the Evidence Custodian casework
-workspace for cases, assignments, storage locations, evidence registration, and case/evidence
-search. The Investigator workspace, Custodian checkout screens, complete history presentation,
-and logout remain staged work.
+The current build includes database-backed sign-in, separate Custodian and Investigator workspaces,
+role-based logout, case and evidence management, the complete checkout/return workflow, examination
+notes and note corrections, and authorized ordered history with append-only documentary
+corrections.
 
 - [User Guide](UserGuide.md)
 - [Architecture](Architecture.md)

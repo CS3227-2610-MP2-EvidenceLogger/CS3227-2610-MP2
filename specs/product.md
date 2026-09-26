@@ -43,6 +43,7 @@ The team confirmed D-01 through D-07. The final column records whether any detai
 | D-05 | Notes attach to a specific checkout, require only note text, and are visible to the Custodian and Investigators assigned to the case. Corrections are appended. | None. |
 | D-06 | Every return requires Custodian inspection. The only inspection outcome is `STORED`. | None. |
 | D-07 | History is append-only; errors are corrected with an entry containing actor, time, and reason. Request rejection appears in the same case/evidence history view. The minimum event fields are defined in `specs/domain-rules.md`. | None. |
+| D-08 | A Custodian may void an erroneous evidence registration only while the item is `IN_STORAGE` and has never entered a checkout-request workflow. Voiding requires a nonblank reason, retains the item and its history, changes its state to `VOIDED`, and appends an audit event atomically. Voided evidence is hidden from normal searches but remains available to the Custodian through an explicit filter. This is not evidence disposal. | None. |
 
 ## 4. Approved implementation stack
 

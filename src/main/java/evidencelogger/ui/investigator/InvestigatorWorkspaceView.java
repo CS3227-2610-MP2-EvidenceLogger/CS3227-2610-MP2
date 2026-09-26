@@ -4,6 +4,8 @@ import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import evidencelogger.domain.CheckoutId;
 import evidencelogger.domain.CheckoutRequestStatus;
@@ -13,6 +15,8 @@ import evidencelogger.domain.HandoffId;
 import evidencelogger.service.dto.CaseworkViews;
 import evidencelogger.service.dto.CheckoutViews;
 import evidencelogger.service.dto.HistoryViews;
+import evidencelogger.ui.common.HistoryEventFormatter;
+import evidencelogger.ui.common.SelectionStyles;
 import evidencelogger.ui.common.WorkspaceHeader;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -31,6 +35,9 @@ import javafx.scene.layout.VBox;
 
 /** Mockup-inspired Investigator dashboard for authorized casework and requests. */
 public final class InvestigatorWorkspaceView {
+    private static final Logger LOGGER = Logger.getLogger(
+            InvestigatorWorkspaceView.class.getName());
+
     private final InvestigatorController controller;
     private final Executor databaseExecutor;
     private final BorderPane root;
@@ -57,6 +64,13 @@ public final class InvestigatorWorkspaceView {
         this.controller = Objects.requireNonNull(controller, "controller");
         this.databaseExecutor = Objects.requireNonNull(databaseExecutor, "databaseExecutor");
         Objects.requireNonNull(signOut, "signOut");
+        history.setCellFactory(list -> new javafx.scene.control.ListCell<>() {
+            @Override
+            protected void updateItem(HistoryViews.Event item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : HistoryEventFormatter.format(item));
+            }
+        });
         BorderPane workspace = new BorderPane();
         workspace.setTop(WorkspaceHeader.create(new WorkspaceHeader.Configuration(
                 "Investigator workspace", displayName, signOut)));
@@ -64,6 +78,7 @@ public final class InvestigatorWorkspaceView {
         workspace.setBottom(status);
         BorderPane.setMargin(status, new Insets(8));
         root = workspace;
+        SelectionStyles.applyTo(root);
         load();
     }
 
@@ -302,7 +317,17 @@ public final class InvestigatorWorkspaceView {
         Objects.requireNonNull(failure, "failure");
         setBusy.accept(true);
         executor.execute(() -> {
-            InvestigatorController.Result<T> result = task.get();
+            InvestigatorController.Result<T> result;
+            try {
+                result = task.get();
+            } catch (RuntimeException exception) {
+                LOGGER.log(Level.SEVERE, "Unexpected Investigator workspace failure", exception);
+                uiDispatcher.accept(() -> {
+                    setBusy.accept(false);
+                    failure.accept("The operation could not be completed. Please try again.");
+                });
+                return;
+            }
             uiDispatcher.accept(() -> {
                 setBusy.accept(false);
                 if (result.successful()) {

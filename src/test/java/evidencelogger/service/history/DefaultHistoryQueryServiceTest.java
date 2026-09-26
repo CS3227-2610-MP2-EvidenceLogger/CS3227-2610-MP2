@@ -15,6 +15,10 @@ import org.junit.jupiter.api.Test;
 import evidencelogger.domain.AuditEventId;
 import evidencelogger.domain.AuditEventType;
 import evidencelogger.domain.CaseId;
+import evidencelogger.domain.CheckoutRequestId;
+import evidencelogger.domain.CheckoutRequestStatus;
+import evidencelogger.domain.EvidenceCustodyState;
+import evidencelogger.domain.EvidenceId;
 import evidencelogger.domain.Role;
 import evidencelogger.domain.UserId;
 import evidencelogger.infrastructure.db.TransactionRunner;
@@ -66,6 +70,9 @@ class DefaultHistoryQueryServiceTest {
                 .map(HistoryViews.Event::eventId)
                 .toList());
         assertEquals(AuditEventType.REQUEST_REJECTED, events.getFirst().type());
+        assertEquals(Optional.of("EV-001"), events.getFirst().evidenceReference());
+        assertEquals(Optional.of(CheckoutRequestStatus.REJECTED),
+                events.getFirst().resultingRequestStatus());
         assertEquals("Insufficient purpose", events.getFirst().reason().orElseThrow());
         assertEquals(AuditEventType.EXAMINATION_NOTE_CORRECTED, events.getLast().type());
         assertEquals("Corrected identifier", events.getLast().correctionText().orElseThrow());
@@ -166,7 +173,24 @@ class DefaultHistoryQueryServiceTest {
                 Optional<String> reason) {
             return new EventDetails(
                     eventId, type, CUSTODIAN_ID, "Morgan Custodian",
-                    Role.EVIDENCE_CUSTODIAN, EVENT_TIME, correctionText, reason);
+                    Role.EVIDENCE_CUSTODIAN, EVENT_TIME,
+                    Optional.of(new EvidenceId(UUID.randomUUID())),
+                    Optional.of("EV-001"),
+                    Optional.of(new CheckoutRequestId(UUID.randomUUID())),
+                    Optional.empty(),
+                    Optional.empty(),
+                    Optional.of(CheckoutRequestStatus.PENDING),
+                    Optional.of(CheckoutRequestStatus.REJECTED),
+                    Optional.of(EvidenceCustodyState.IN_STORAGE),
+                    Optional.of(EvidenceCustodyState.IN_STORAGE),
+                    correctionText, reason,
+                    Optional.empty());
+        }
+
+        @Override
+        public Optional<EventSubjects> findEventSubjects(
+                Connection connection, AuditEventId eventId) {
+            return Optional.empty();
         }
     }
 }

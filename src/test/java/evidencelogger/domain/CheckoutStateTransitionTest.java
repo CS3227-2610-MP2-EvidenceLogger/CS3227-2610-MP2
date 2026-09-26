@@ -62,4 +62,15 @@ class CheckoutStateTransitionTest {
         assertFalse(EvidenceCustodyState.HANDIN_AWAITING_ACK
                 .canTransitionTo(EvidenceCustodyState.CHECKED_OUT));
     }
+
+    @Test
+    void onlyStoredEvidenceCanAdvanceToTerminalVoidedState() {
+        assertTrue(EvidenceCustodyState.IN_STORAGE
+                .canTransitionTo(EvidenceCustodyState.VOIDED));
+        for (EvidenceCustodyState target : EvidenceCustodyState.values()) {
+            assertFalse(EvidenceCustodyState.VOIDED.canTransitionTo(target));
+        }
+        assertFalse(EvidenceCustodyState.CHECKED_OUT
+                .canTransitionTo(EvidenceCustodyState.VOIDED));
+    }
 }

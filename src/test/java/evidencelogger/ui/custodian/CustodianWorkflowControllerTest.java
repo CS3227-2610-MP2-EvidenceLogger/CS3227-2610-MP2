@@ -13,6 +13,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import evidencelogger.domain.AuditEventId;
+import evidencelogger.domain.AuditEventType;
 import evidencelogger.domain.CaseId;
 import evidencelogger.domain.CheckoutId;
 import evidencelogger.domain.CheckoutRequestId;
@@ -27,7 +29,9 @@ import evidencelogger.service.checkout.CheckoutCommandService;
 import evidencelogger.service.checkout.CheckoutQueryService;
 import evidencelogger.service.dto.CheckoutCommands;
 import evidencelogger.service.dto.CheckoutViews;
+import evidencelogger.service.dto.HistoryCommands;
 import evidencelogger.service.dto.HistoryViews;
+import evidencelogger.service.history.HistoryCommandService;
 import evidencelogger.service.history.HistoryQueryService;
 
 class CustodianWorkflowControllerTest {
@@ -37,6 +41,7 @@ class CustodianWorkflowControllerTest {
     private RecordingCommands commands;
     private RecordingQueries queries;
     private RecordingHistory history;
+    private RecordingHistoryCommands historyCommands;
     private CustodianWorkflowController controller;
 
     @BeforeEach
@@ -44,7 +49,9 @@ class CustodianWorkflowControllerTest {
         commands = new RecordingCommands();
         queries = new RecordingQueries();
         history = new RecordingHistory();
-        controller = new CustodianWorkflowController(commands, queries, history);
+        historyCommands = new RecordingHistoryCommands();
+        controller = new CustodianWorkflowController(
+                commands, queries, historyCommands, history);
     }
 
     @Test
@@ -135,6 +142,37 @@ class CustodianWorkflowControllerTest {
 
         assertFalse(result.successful());
         assertEquals("The request is no longer pending", result.message());
+    }
+
+    @Test
+    void validatesAndForwardsDocumentaryHistoryCorrection() {
+        AuditEventId eventId = new AuditEventId(UUID.randomUUID());
+        HistoryViews.Event event = new HistoryViews.Event(
+                eventId,
+                AuditEventType.EVIDENCE_REGISTERED,
+                "Morgan Custodian",
+                evidencelogger.domain.Role.EVIDENCE_CUSTODIAN,
+                NOW,
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty());
+
+        assertFalse(controller.correctHistory(null, "Corrected", "Mistake").successful());
+        assertFalse(controller.correctHistory(event, " ", "Mistake").successful());
+        assertFalse(controller.correctHistory(event, "Corrected", " ").successful());
+        assertTrue(controller.correctHistory(event, "Corrected", "Mistake").successful());
+        assertEquals(eventId, historyCommands.command.eventId());
+        assertEquals("Corrected", historyCommands.command.correctionText());
+        assertEquals("Mistake", historyCommands.command.reason());
     }
 
     private static CheckoutViews.Request request(
@@ -317,6 +355,15 @@ class CustodianWorkflowControllerTest {
         public List<HistoryViews.Event> listEventsForCase(CaseId selectedCaseId) {
             caseId = selectedCaseId;
             return events;
+        }
+    }
+
+    private static final class RecordingHistoryCommands implements HistoryCommandService {
+        private HistoryCommands.CorrectEvent command;
+
+        @Override
+        public void correctEvent(HistoryCommands.CorrectEvent correction) {
+            command = correction;
         }
     }
 }

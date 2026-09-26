@@ -1,0 +1,49 @@
+.table-row-cell:filled:even,
+.list-cell:filled:even {
+    -fx-background-color: #f2f4f7;
+}
+
+.table-row-cell:filled:odd,
+.list-cell:filled:odd {
+    -fx-background-color: white;
+}
+
+/* Keep selection visible when focus moves to an action button or another control. */
+.table-row-cell:filled:selected,
+.table-row-cell:filled:selected:focused,
+.list-cell:filled:selected,
+.list-cell:filled:selected:focused {
+    -fx-background-color: #2f6fad;
+    -fx-text-background-color: white;
+    -fx-text-fill: white;
+}
+
+.table-row-cell:filled:selected .table-cell {
+    -fx-text-fill: white;
+}
+
+/* A ComboBox value is a choice, not a persistently selected workspace row. */
+.combo-box > .list-cell {
+    -fx-background: transparent;
+    -fx-background-color: transparent;
+    -fx-text-background-color: -fx-text-base-color;
+    -fx-text-fill: -fx-text-base-color;
+}
+
+.combo-box-popup .list-cell:filled,
+.combo-box-popup .list-cell:filled:selected {
+    -fx-background: -fx-control-inner-background;
+    -fx-background-color: -fx-control-inner-background;
+    -fx-background-insets: 0;
+    -fx-text-background-color: -fx-text-base-color;
+    -fx-text-fill: -fx-text-base-color;
+}
+
+.combo-box-popup .list-cell:filled:hover,
+.combo-box-popup .list-cell:filled:selected:hover {
+    -fx-background: #2f6fad;
+    -fx-background-color: #2f6fad;
+    -fx-background-insets: 0;
+    -fx-text-background-color: white;
+    -fx-text-fill: white;
+}

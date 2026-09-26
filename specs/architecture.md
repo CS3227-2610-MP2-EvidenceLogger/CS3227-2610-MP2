@@ -54,7 +54,7 @@ Use a single application module and a root package such as `evidencelogger`. The
 | `evidencelogger.ui.custodian` | Minimal Custodian screens/controllers for cases, assignments, locations, registration, request decisions, handoffs, returns, and history. | Reimplement transition or authorization rules. |
 | `evidencelogger.ui.investigator` | Minimal Investigator screens/controllers for assigned-case search, requests, acknowledgment, notes, returns, and history. | Filter unrestricted repository results as its security mechanism. |
 | `evidencelogger.service.auth` | Authentication, password verification, session issuance, and reusable role/assignment authorization checks. | Expose stored hashes or accept an actor ID in place of a session. |
-| `evidencelogger.service.casework` | Case creation, assignment changes, storage-location maintenance, evidence registration, and authorized case/evidence queries. | Commit transactions in repositories. |
+| `evidencelogger.service.casework` | Case creation, assignment changes, storage-location maintenance, evidence registration and voiding, and authorized case/evidence queries. | Commit transactions in repositories. |
 | `evidencelogger.service.checkout` | Request, decision, handoff, acknowledgment, note, return, and inspection use cases. | Depend on JavaFX types. |
 | `evidencelogger.service.history` | Authorized ordered-history queries and append-only correction use cases. | Update or delete prior history. |
 | `evidencelogger.service.dto` | Command inputs and read models returned to UI. Prefer immutable Java records. | Contain JDBC objects or UI controls. |

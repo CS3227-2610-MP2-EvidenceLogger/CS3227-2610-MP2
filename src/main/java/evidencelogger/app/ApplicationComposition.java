@@ -44,7 +44,9 @@ import evidencelogger.service.checkout.CheckoutQueryService;
 import evidencelogger.service.checkout.DefaultCheckoutCommandService;
 import evidencelogger.service.checkout.DefaultCheckoutQueryService;
 import evidencelogger.service.history.AuditEventWriter;
+import evidencelogger.service.history.DefaultHistoryCommandService;
 import evidencelogger.service.history.DefaultHistoryQueryService;
+import evidencelogger.service.history.HistoryCommandService;
 import evidencelogger.service.history.HistoryQueryService;
 
 /** Explicit application-wide object graph created after successful migration. */
@@ -59,6 +61,7 @@ public final class ApplicationComposition implements AutoCloseable {
     private final CaseworkQueryService caseworkQueries;
     private final CheckoutCommandService checkoutCommands;
     private final CheckoutQueryService checkoutQueries;
+    private final HistoryCommandService historyCommands;
     private final HistoryQueryService historyQueries;
 
     private ApplicationComposition(
@@ -72,6 +75,7 @@ public final class ApplicationComposition implements AutoCloseable {
             CaseworkQueryService caseworkQueries,
             CheckoutCommandService checkoutCommands,
             CheckoutQueryService checkoutQueries,
+            HistoryCommandService historyCommands,
             HistoryQueryService historyQueries) {
         this.connectionFactory = connectionFactory;
         this.transactions = transactions;
@@ -83,6 +87,7 @@ public final class ApplicationComposition implements AutoCloseable {
         this.caseworkQueries = caseworkQueries;
         this.checkoutCommands = checkoutCommands;
         this.checkoutQueries = checkoutQueries;
+        this.historyCommands = historyCommands;
         this.historyQueries = historyQueries;
     }
 
@@ -142,11 +147,17 @@ public final class ApplicationComposition implements AutoCloseable {
                 checkoutIds,
                 noteIds,
                 clock);
+        JdbcAuditEventReadRepository historyRepository = new JdbcAuditEventReadRepository();
+        HistoryCommandService historyCommands = new DefaultHistoryCommandService(
+                transactions,
+                authorization,
+                historyRepository,
+                auditEvents);
         HistoryQueryService historyQueries = new DefaultHistoryQueryService(
                 transactions,
                 authorization,
                 sessions,
-                new JdbcAuditEventReadRepository());
+                historyRepository);
         return new ApplicationComposition(
                 connectionFactory,
                 transactions,
@@ -158,6 +169,7 @@ public final class ApplicationComposition implements AutoCloseable {
                 casework,
                 checkoutCommands,
                 checkoutQueries,
+                historyCommands,
                 historyQueries);
     }
 
@@ -209,6 +221,11 @@ public final class ApplicationComposition implements AutoCloseable {
     /** Returns the authorized checkout query service. */
     public CheckoutQueryService checkoutQueries() {
         return checkoutQueries;
+    }
+
+    /** Returns authorized append-only history correction commands. */
+    public HistoryCommandService historyCommands() {
+        return historyCommands;
     }
 
     /** Returns authorized append-only history queries. */

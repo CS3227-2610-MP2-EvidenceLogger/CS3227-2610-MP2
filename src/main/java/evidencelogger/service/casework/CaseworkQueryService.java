@@ -11,6 +11,8 @@ public interface CaseworkQueryService {
 
     List<CaseworkViews.Evidence> searchEvidence(String searchText);
 
+    List<CaseworkViews.Evidence> searchEvidenceIncludingVoided(String searchText);
+
     List<CaseworkViews.Investigator> listInvestigators();
 
     List<CaseworkViews.Investigator> listAssignments(CaseId caseId);
