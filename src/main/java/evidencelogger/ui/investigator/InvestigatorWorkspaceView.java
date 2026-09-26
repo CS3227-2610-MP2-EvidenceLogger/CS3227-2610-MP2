@@ -16,6 +16,7 @@ import evidencelogger.service.dto.CaseworkViews;
 import evidencelogger.service.dto.CheckoutViews;
 import evidencelogger.service.dto.HistoryViews;
 import evidencelogger.ui.common.HistoryEventFormatter;
+import evidencelogger.ui.common.SelectionStyles;
 import evidencelogger.ui.common.WorkspaceHeader;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -77,6 +78,7 @@ public final class InvestigatorWorkspaceView {
         workspace.setBottom(status);
         BorderPane.setMargin(status, new Insets(8));
         root = workspace;
+        SelectionStyles.applyTo(root);
         load();
     }
 

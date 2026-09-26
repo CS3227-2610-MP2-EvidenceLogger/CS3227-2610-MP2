@@ -13,6 +13,7 @@ import java.util.logging.Logger;
 
 import evidencelogger.domain.EvidenceCustodyState;
 import evidencelogger.service.dto.CaseworkViews;
+import evidencelogger.ui.common.SelectionStyles;
 import evidencelogger.ui.common.WorkspaceHeader;
 import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyStringWrapper;
@@ -34,11 +35,9 @@ import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
-import javafx.scene.control.TitledPane;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.BorderPane;
@@ -110,6 +109,7 @@ public final class CustodianCaseworkView {
                 fixedTab("Work queue", workflowView.view()),
                 fixedTab("Locations", locationScreen()));
         root = new BorderPane(tabs);
+        SelectionStyles.applyTo(root);
         status.setMaxWidth(Double.MAX_VALUE);
         status.setStyle("-fx-background-color: #e8eef6; -fx-padding: 8;");
         VBox header = new VBox(WorkspaceHeader.create(
@@ -147,12 +147,11 @@ public final class CustodianCaseworkView {
         Button assign = new Button("Assign investigator");
         assign.setOnAction(event -> assignInvestigator(assign));
         removeAssignment.setOnAction(event -> removeAssignment(removeAssignment));
-        HBox assignmentActions = row(assignmentInvestigator, assign, removeAssignment);
-        VBox assignmentBox = new VBox(SPACING, assignmentActions, currentAssignments);
-        currentAssignments.setPrefHeight(100);
-        TitledPane assignmentsPane = new TitledPane("Assigned investigators", assignmentBox);
-        assignmentsPane.setCollapsible(true);
-        assignmentsPane.setExpanded(true);
+        HBox assignmentActions = row(assignmentInvestigator, assign);
+        VBox assignmentBox = new VBox(
+                SPACING, assignmentActions, currentAssignments, removeAssignment);
+        assignmentBox.setPadding(new Insets(SPACING, 0, 0, 0));
+        VBox.setVgrow(currentAssignments, Priority.ALWAYS);
 
         registerEvidence.setOnAction(event -> showRegistrationDialog(selectedCase()));
         Button copyCaseEvidenceReference = new Button("Copy selected reference");
@@ -161,20 +160,19 @@ public final class CustodianCaseworkView {
         HBox caseEvidenceActions = new HBox(
                 SPACING, registerEvidence, copyCaseEvidenceReference);
         caseEvidence.setPlaceholder(new Label("No evidence is registered to this case."));
-        TitledPane historyPane = new TitledPane("Case history", workflowView.historyView());
-        historyPane.setCollapsible(true);
-        historyPane.setExpanded(false);
 
-        VBox right = new VBox(SPACING,
-                selectedCaseTitle,
-                assignmentsPane,
-                new Label("Evidence in this case"),
-                caseEvidence,
-                caseEvidenceActions,
-                historyPane);
-        right.setPadding(new Insets(16));
+        VBox evidenceBox = new VBox(SPACING, caseEvidence, caseEvidenceActions);
+        evidenceBox.setPadding(new Insets(SPACING, 0, 0, 0));
         VBox.setVgrow(caseEvidence, Priority.ALWAYS);
-        VBox.setVgrow(historyPane, Priority.ALWAYS);
+        TabPane caseDetails = new TabPane(
+                fixedTab("Assigned investigators", assignmentBox),
+                fixedTab("Evidence", evidenceBox),
+                fixedTab("Case history", workflowView.historyView()));
+
+        BorderPane right = new BorderPane(caseDetails);
+        right.setTop(selectedCaseTitle);
+        right.setPadding(new Insets(16));
+        BorderPane.setMargin(selectedCaseTitle, new Insets(0, 0, SPACING, 0));
 
         SplitPane split = new SplitPane(left, right);
         split.setDividerPositions(0.28);
@@ -645,19 +643,6 @@ public final class CustodianCaseworkView {
         table.getColumns().add(evidenceColumn("Case", CaseworkViews.Evidence::caseTitle));
         table.getColumns().add(evidenceColumn(
                 "Status", item -> displayState(item.custodyState())));
-        table.setRowFactory(ignored -> new TableRow<>() {
-            @Override
-            protected void updateItem(CaseworkViews.Evidence item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setStyle("");
-                } else {
-                    setStyle(getIndex() % 2 == 0
-                            ? "-fx-background-color: #f2f4f7;"
-                            : "-fx-background-color: white;");
-                }
-            }
-        });
         return table;
     }
 

@@ -31,7 +31,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.BorderPane;
@@ -232,19 +231,6 @@ public final class CustodianWorkflowView {
         workItems.getColumns().add(column("Investigator", WorkItem::investigator));
         workItems.getColumns().add(column("Status", WorkItem::status));
         workItems.getColumns().add(column("Due / collected", WorkItem::time));
-        workItems.setRowFactory(table -> new TableRow<>() {
-            @Override
-            protected void updateItem(WorkItem item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setStyle("");
-                } else {
-                    setStyle(getIndex() % 2 == 0
-                            ? "-fx-background-color: #f2f4f7;"
-                            : "-fx-background-color: white;");
-                }
-            }
-        });
     }
 
     private void refreshWorkflow() {
