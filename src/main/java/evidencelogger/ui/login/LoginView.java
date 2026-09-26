@@ -78,6 +78,7 @@ public final class LoginView {
         message.setTextFill(text.isBlank() ? Color.BLACK : Color.FIREBRICK);
     }
 
+    /** Captures credentials, authenticates off the JavaFX thread, and renders the result safely. */
     private void submit() {
         String suppliedUsername = username.getText();
         char[] suppliedPassword = password.getText().toCharArray();
@@ -109,6 +110,7 @@ public final class LoginView {
         });
     }
 
+    /** Restores the sign-in form after an unexpected background failure. */
     private void finishWithMessage(String text) {
         signIn.setDisable(false);
         message.setText(text);

@@ -82,6 +82,7 @@ public final class EvidenceLoggerApplication extends Application {
         }
     }
 
+    /** Creates the single daemon executor used for database work outside the JavaFX thread. */
     private static ExecutorService createDatabaseExecutor() {
         return Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable, "evidencelogger-database");
@@ -90,6 +91,7 @@ public final class EvidenceLoggerApplication extends Application {
         });
     }
 
+    /** Replaces protected content with the login view and its optional navigation message. */
     private void showLogin(ApplicationShell shell, String message) {
         LoginController controller = new LoginController(composition.authentication());
         AuthenticatedRoleRouter router = new AuthenticatedRoleRouter(
@@ -105,6 +107,7 @@ public final class EvidenceLoggerApplication extends Application {
         shell.showContent(login.view());
     }
 
+    /** Composes and displays the Custodian workspace for the authenticated session. */
     private void showCustodianWorkspace(ApplicationShell shell, AuthenticatedSession session) {
         CaseworkController controller = new CaseworkController(
                 composition.caseworkCommands(), composition.caseworkQueries());
@@ -115,6 +118,7 @@ public final class EvidenceLoggerApplication extends Application {
                 }).view());
     }
 
+    /** Composes and displays the Investigator workspace for the authenticated session. */
     private void showInvestigatorWorkspace(ApplicationShell shell, AuthenticatedSession session) {
         InvestigatorController controller = new InvestigatorController(
                 composition.caseworkQueries(),

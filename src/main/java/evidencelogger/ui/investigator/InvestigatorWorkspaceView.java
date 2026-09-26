@@ -72,6 +72,7 @@ public final class InvestigatorWorkspaceView {
         return root;
     }
 
+    /** Builds the Investigator dashboard and wires selection-dependent workflow actions. */
     private Parent dashboard() {
         TextField search = new TextField();
         search.setPromptText("Search assigned cases and evidence");
@@ -181,6 +182,7 @@ public final class InvestigatorWorkspaceView {
         load("");
     }
 
+    /** Starts parallel workspace queries using the supplied assigned-case search text. */
     private void load(String text) {
         run(null, () -> controller.searchCases(text),
                 value -> cases.setItems(FXCollections.observableArrayList(value)));
@@ -212,6 +214,7 @@ public final class InvestigatorWorkspaceView {
         return selected == null ? null : selected.noteId();
     }
 
+    /** Reloads notes when an active checkout is selected. */
     private void loadNotes() {
         if (selectedCheckoutId() != null) {
             run(null, () -> controller.listNotes(selectedCheckoutId()),
@@ -219,6 +222,7 @@ public final class InvestigatorWorkspaceView {
         }
     }
 
+    /** Applies workflow action availability derived from the current selections. */
     private void updateActionAvailability() {
         ActionAvailability availability = actionAvailability(
                 evidence.getSelectionModel().getSelectedItem(),
@@ -265,6 +269,7 @@ public final class InvestigatorWorkspaceView {
             boolean canCorrectNote) {
     }
 
+    /** Dispatches service work and maps its result to dashboard status and button state. */
     private <T> void run(Button button, Supplier<InvestigatorController.Result<T>> task,
             Consumer<T> success) {
         dispatchTask(databaseExecutor, task,
