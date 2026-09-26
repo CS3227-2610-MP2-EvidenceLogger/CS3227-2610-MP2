@@ -48,6 +48,8 @@ public interface CheckoutReadRepository {
             CheckoutRequestId requestId,
             EvidenceId evidenceId,
             String evidenceReference,
+            String evidenceDescription,
+            String storageLocationName,
             CaseId caseId,
             String caseTitle,
             UserId requesterId,
@@ -64,6 +66,8 @@ public interface CheckoutReadRepository {
             Objects.requireNonNull(requestId, "requestId");
             Objects.requireNonNull(evidenceId, "evidenceId");
             Objects.requireNonNull(evidenceReference, "evidenceReference");
+            Objects.requireNonNull(evidenceDescription, "evidenceDescription");
+            Objects.requireNonNull(storageLocationName, "storageLocationName");
             Objects.requireNonNull(caseId, "caseId");
             Objects.requireNonNull(caseTitle, "caseTitle");
             Objects.requireNonNull(requesterId, "requesterId");

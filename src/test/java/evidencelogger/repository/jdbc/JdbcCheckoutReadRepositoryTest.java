@@ -84,6 +84,8 @@ class JdbcCheckoutReadRepositoryTest {
                 .toList());
         assertEquals("Assigned case", request.caseTitle());
         assertEquals("EV-ASSIGNED", request.evidenceReference());
+        assertEquals("Evidence item", request.evidenceDescription());
+        assertEquals("Query test locker", request.storageLocationName());
         assertEquals("Alex Investigator", request.requesterDisplayName());
         assertEquals(Optional.of(ASSIGNED_HANDOFF_ID), request.handoffId());
         assertEquals(Optional.of(ASSIGNED_CHECKOUT_ID), request.checkoutId());

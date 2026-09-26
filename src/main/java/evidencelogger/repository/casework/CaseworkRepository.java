@@ -46,6 +46,9 @@ public interface CaseworkRepository {
     List<EvidenceRecord> searchEvidence(
             String searchText, Optional<UserId> assignedInvestigatorId);
 
+    List<EvidenceRecord> listEvidenceForCase(
+            CaseId caseId, Optional<UserId> assignedInvestigatorId);
+
     List<InvestigatorRecord> listInvestigators();
 
     List<InvestigatorRecord> listAssignments(CaseId caseId);

@@ -8,11 +8,14 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 
 /** Shared role-workspace header containing identity and sign-out controls. */
 public final class WorkspaceHeader {
     private static final String BACKGROUND_STYLE = "-fx-background-color: #102b4c;";
     private static final String TEXT_STYLE = "-fx-text-fill: white;";
+    private static final double HEADING_FONT_SIZE = 24;
 
     private WorkspaceHeader() {
     }
@@ -42,8 +45,12 @@ public final class WorkspaceHeader {
 
         HBox bar = new HBox(18, title, user, signOut);
         bar.setPadding(new Insets(16));
+        bar.setMaxWidth(Double.MAX_VALUE);
         title.setStyle(TEXT_STYLE);
+        title.setFont(Font.font("System", FontWeight.BOLD, HEADING_FONT_SIZE));
         user.setStyle(TEXT_STYLE);
+        user.setFont(Font.font("System", FontWeight.BOLD, HEADING_FONT_SIZE));
+        signOut.setFont(Font.font("System", FontWeight.BOLD, 20));
         HBox.setHgrow(title, Priority.ALWAYS);
         bar.setStyle(BACKGROUND_STYLE);
         return bar;

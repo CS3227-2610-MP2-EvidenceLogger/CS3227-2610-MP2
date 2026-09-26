@@ -31,18 +31,20 @@ import javafx.stage.Stage;
 public final class EvidenceLoggerApplication extends Application {
     private static final double INITIAL_WIDTH = 960;
     private static final double INITIAL_HEIGHT = 640;
+    private static final double INVESTIGATOR_MINIMUM_WIDTH = 1400;
+    private static final double INVESTIGATOR_MINIMUM_HEIGHT = 1000;
     private static final Logger LOGGER = Logger.getLogger(EvidenceLoggerApplication.class.getName());
 
     private ExecutorService databaseExecutor;
     private ApplicationComposition composition;
     private DiagnosticLogging diagnosticLogging;
+    private Stage primaryStage;
 
     @Override
     public void start(Stage primaryStage) {
+        this.primaryStage = primaryStage;
         ApplicationShell shell = new ApplicationShell();
         primaryStage.setTitle(ApplicationShell.APPLICATION_NAME);
-        primaryStage.setMinWidth(720);
-        primaryStage.setMinHeight(480);
         primaryStage.setScene(new Scene(shell.view(), INITIAL_WIDTH, INITIAL_HEIGHT));
 
         try {
@@ -126,6 +128,9 @@ public final class EvidenceLoggerApplication extends Application {
 
     /** Composes and displays the Investigator workspace for the authenticated session. */
     private void showInvestigatorWorkspace(ApplicationShell shell, AuthenticatedSession session) {
+        primaryStage.setMinWidth(INVESTIGATOR_MINIMUM_WIDTH);
+        primaryStage.setMinHeight(INVESTIGATOR_MINIMUM_HEIGHT);
+        primaryStage.setMaximized(true);
         InvestigatorController controller = new InvestigatorController(
                 composition.caseworkQueries(),
                 composition.checkoutQueries(),
