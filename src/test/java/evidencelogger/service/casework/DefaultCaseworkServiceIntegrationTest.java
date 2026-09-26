@@ -145,6 +145,11 @@ class DefaultCaseworkServiceIntegrationTest {
         assertEquals(List.of("Alex item"), service.searchEvidence("").stream()
                 .map(CaseworkViews.Evidence::description)
                 .toList());
+        assertEquals(List.of("Alex item"), service.listEvidenceForCase(alexCase).stream()
+                .map(CaseworkViews.Evidence::description)
+                .toList());
+        assertThrows(ServiceException.Forbidden.class, () ->
+                service.listEvidenceForCase(blairCase));
         assertThrows(ServiceException.Forbidden.class, () ->
                 service.addStorageLocation(new CaseworkCommands.AddStorageLocation("Forbidden")));
         assertThrows(ServiceException.Forbidden.class, service::listInvestigators);

@@ -1,5 +1,8 @@
 package evidencelogger.ui.investigator;
 
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
@@ -21,16 +24,26 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 
 /** Mockup-inspired Investigator dashboard for authorized casework and requests. */
 public final class InvestigatorWorkspaceView {
+    private static final double SECTION_HEADING_FONT_SIZE = 16;
+    private static final DateTimeFormatter CASE_CREATED_AT_FORMAT = DateTimeFormatter
+            .ofPattern("dd/MM/uuuu HH:mm")
+            .withZone(ZoneOffset.UTC);
+
     private final InvestigatorController controller;
     private final Executor databaseExecutor;
     private final BorderPane root;
@@ -59,7 +72,7 @@ public final class InvestigatorWorkspaceView {
         Objects.requireNonNull(signOut, "signOut");
         BorderPane workspace = new BorderPane();
         workspace.setTop(WorkspaceHeader.create(new WorkspaceHeader.Configuration(
-                "Investigator workspace", displayName, signOut)));
+                "Investigator Workspace", displayName, signOut)));
         workspace.setCenter(dashboard());
         workspace.setBottom(status);
         BorderPane.setMargin(status, new Insets(8));
@@ -76,13 +89,22 @@ public final class InvestigatorWorkspaceView {
     private Parent dashboard() {
         TextField search = new TextField();
         search.setPromptText("Search assigned cases and evidence");
+        cases.setCellFactory(ignored -> caseCell());
+        evidence.setCellFactory(ignored -> evidenceCell());
+        requests.setCellFactory(ignored -> requestCell());
         Button find = new Button("Search");
         find.setOnAction(event -> load(search.getText()));
+        HBox searchRow = new HBox(8, search, find);
+        HBox.setHgrow(search, Priority.ALWAYS);
         TextField purpose = new TextField();
         purpose.setPromptText("Purpose");
         TextField expected = new TextField();
         expected.setPromptText("Expected return UTC (2026-09-26T17:00:00Z)");
-        submitRequest = new Button("Submit checkout request");
+        submitRequest = new Button("Submit Checkout Request");
+        VBox requestFields = new VBox(8, purpose, expected);
+        HBox.setHgrow(requestFields, Priority.ALWAYS);
+        submitRequest.setMaxHeight(Double.MAX_VALUE);
+        HBox requestRow = new HBox(8, requestFields, submitRequest);
         withdrawRequest = new Button("Withdraw pending request");
         submitRequest.setOnAction(event -> run(submitRequest, () -> controller.submitRequest(
                 evidence.getSelectionModel().getSelectedItem(),
@@ -99,8 +121,8 @@ public final class InvestigatorWorkspaceView {
         requests.getSelectionModel().selectedItemProperty().addListener((
                 observable, oldRequest, selectedRequest) -> updateActionAvailability());
 
-        VBox left = panel("My assigned cases", search, find, cases,
-                new Label("Evidence for selected case"), evidence);
+        VBox left = panel("My Assigned Cases", searchRow, cases,
+                sectionHeading("Evidence for Selected Case"), evidence);
         noteEditor = new TextArea();
         noteEditor.setPromptText("Examination note");
         addNote = new Button("Add examination note");
@@ -144,18 +166,21 @@ public final class InvestigatorWorkspaceView {
         cases.getSelectionModel().selectedItemProperty()
                 .addListener((observable, oldCase, selectedCase) -> {
                     if (selectedCase != null) {
+                        run(null, () -> controller.listEvidenceForCase(selectedCase.caseId()),
+                                value -> evidence.setItems(FXCollections.observableArrayList(value)));
                         run(null, () -> controller.listHistory(selectedCase.caseId()),
                                 value -> history.setItems(FXCollections.observableArrayList(value)));
+                    } else {
+                        evidence.setItems(FXCollections.observableArrayList());
                     }
                 });
 
-        VBox right = panel("Evidence details & request",
-                new Label("Select assigned evidence to request."), purpose, expected,
-                submitRequest,
-                new Label("My requests & status"), requests, withdrawRequest,
-                acknowledgeCollection, new Label("Active checkout"), checkouts, notes,
+        VBox right = panel("Evidence Details & Request",
+                new Label("Select assigned evidence to request."), requestRow,
+                sectionHeading("My Requests"), requests, withdrawRequest,
+                acknowledgeCollection, sectionHeading("Active Checkout"), checkouts, notes,
                 noteEditor, addNote, correctionText, correctionReason, correctNote,
-                initiateReturn, new Label("Custody history"), history);
+                initiateReturn, sectionHeading("Custody History"), history);
         GridPane grid = new GridPane();
         grid.setHgap(12);
         grid.setVgap(12);
@@ -170,12 +195,124 @@ public final class InvestigatorWorkspaceView {
 
     private static VBox panel(String title, Node... nodes) {
         VBox box = new VBox(8);
-        box.getChildren().add(new Label(title));
+        box.getChildren().add(sectionHeading(title));
         box.getChildren().addAll(nodes);
         box.setPadding(new Insets(12));
         Node growNode = nodes.length > 0 ? nodes[nodes.length - 1] : box;
         VBox.setVgrow(growNode, Priority.ALWAYS);
         return box;
+    }
+
+    private static Label sectionHeading(String text) {
+        Label label = new Label(text);
+        label.setFont(Font.font("System", FontWeight.BOLD, SECTION_HEADING_FONT_SIZE));
+        return label;
+    }
+
+    /** Creates the two-line presentation for an assigned case. */
+    private static ListCell<CaseworkViews.Case> caseCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(CaseworkViews.Case item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                Label title = boldLabel(item.title());
+                Label createdAt = new Label("Created at: " + formatCaseCreatedAt(item.createdAt()));
+                setText(null);
+                setGraphic(new VBox(2, title, createdAt));
+            }
+        };
+    }
+
+    /** Formats assigned-case creation timestamps in the Investigator display. */
+    static String formatCaseCreatedAt(Instant createdAt) {
+        return CASE_CREATED_AT_FORMAT.format(Objects.requireNonNull(createdAt, "createdAt"));
+    }
+
+    /** Creates the three-line presentation for assigned evidence. */
+    private static ListCell<CaseworkViews.Evidence> evidenceCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(CaseworkViews.Evidence item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                Label description = boldLabel(item.description());
+                Label location = new Label("Storage: " + item.storageLocationName());
+                Label custodyState = new Label(item.custodyState().name());
+                custodyState.setTextFill(custodyStateColor(item.custodyState()));
+                VBox details = new VBox(2, description, location);
+                HBox evidenceRow = new HBox(8, details, custodyState);
+                evidenceRow.setMaxWidth(Double.MAX_VALUE);
+                HBox.setHgrow(details, Priority.ALWAYS);
+                setText(null);
+                setGraphic(evidenceRow);
+            }
+        };
+    }
+
+    private static Label boldLabel(String text) {
+        Label label = new Label(text);
+        label.setFont(Font.font("System", FontWeight.BOLD, 12));
+        return label;
+    }
+
+    /** Returns the custody-state colour used in the Investigator evidence list. */
+    static Color custodyStateColor(EvidenceCustodyState custodyState) {
+        return switch (Objects.requireNonNull(custodyState, "custodyState")) {
+        case IN_STORAGE -> Color.GREEN;
+        case HANDOFF_AWAITING_ACK, HANDIN_AWAITING_ACK -> Color.ORANGE;
+        case CHECKED_OUT -> Color.RED;
+        };
+    }
+
+    /** Creates the display for an Investigator's checkout request. */
+    private static ListCell<CheckoutViews.Request> requestCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(CheckoutViews.Request item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                VBox details = new VBox(2,
+                        boldLabel(item.evidenceDescription() + " @ " + item.storageLocationName()),
+                        new Label("for Case " + item.caseTitle()),
+                        new Label("Expected Return: "
+                                + formatRequestExpectedReturn(item.expectedReturnAt())));
+                Label requestStatus = new Label(item.status().name());
+                requestStatus.setTextFill(requestStatusColor(item.status()));
+                HBox requestRow = new HBox(8, details, requestStatus);
+                requestRow.setMaxWidth(Double.MAX_VALUE);
+                HBox.setHgrow(details, Priority.ALWAYS);
+                setText(null);
+                setGraphic(requestRow);
+            }
+        };
+    }
+
+    /** Formats a request's expected return time for the Investigator display. */
+    static String formatRequestExpectedReturn(Instant expectedReturnAt) {
+        return CASE_CREATED_AT_FORMAT.format(
+                Objects.requireNonNull(expectedReturnAt, "expectedReturnAt"));
+    }
+
+    /** Returns the request-status colour used in the Investigator request list. */
+    static Color requestStatusColor(CheckoutRequestStatus requestStatus) {
+        return switch (Objects.requireNonNull(requestStatus, "requestStatus")) {
+        case PENDING -> Color.ORANGE;
+        case APPROVED, CONSUMED -> Color.GREEN;
+        case REJECTED, WITHDRAWN, CANCELLED -> Color.RED;
+        };
     }
 
     private void load() {
@@ -185,9 +322,10 @@ public final class InvestigatorWorkspaceView {
     /** Starts parallel workspace queries using the supplied assigned-case search text. */
     private void load(String text) {
         run(null, () -> controller.searchCases(text),
-                value -> cases.setItems(FXCollections.observableArrayList(value)));
-        run(null, () -> controller.searchEvidence(text),
-                value -> evidence.setItems(FXCollections.observableArrayList(value)));
+                value -> {
+                    cases.setItems(FXCollections.observableArrayList(value));
+                    evidence.setItems(FXCollections.observableArrayList());
+                });
         run(null, controller::listRequests,
                 value -> requests.setItems(FXCollections.observableArrayList(value)));
         run(null, controller::listCheckouts,

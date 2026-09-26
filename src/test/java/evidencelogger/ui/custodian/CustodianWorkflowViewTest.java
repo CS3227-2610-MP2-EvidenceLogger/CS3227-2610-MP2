@@ -139,6 +139,8 @@ class CustodianWorkflowViewTest {
                 new CheckoutRequestId(UUID.randomUUID()),
                 new EvidenceId(UUID.randomUUID()),
                 "EV-001",
+                "Sealed bag",
+                "Locker A",
                 new CaseId(UUID.randomUUID()),
                 "Case One",
                 new UserId(UUID.randomUUID()),

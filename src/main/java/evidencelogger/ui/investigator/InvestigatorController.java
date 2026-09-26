@@ -61,6 +61,11 @@ public final class InvestigatorController {
         return execute(() -> caseworkQueries.searchEvidence(text));
     }
 
+    /** Lists evidence for one case visible to the signed-in Investigator. */
+    public Result<List<CaseworkViews.Evidence>> listEvidenceForCase(CaseId caseId) {
+        return execute(() -> caseworkQueries.listEvidenceForCase(caseId));
+    }
+
     /** Lists checkout requests visible to the signed-in Investigator. */
     public Result<List<CheckoutViews.Request>> listRequests() {
         return execute(checkoutQueries::listRequests);

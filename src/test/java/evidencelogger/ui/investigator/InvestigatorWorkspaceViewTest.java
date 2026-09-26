@@ -1,5 +1,6 @@
 package evidencelogger.ui.investigator;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -27,9 +28,50 @@ import evidencelogger.domain.StorageLocationId;
 import evidencelogger.domain.UserId;
 import evidencelogger.service.dto.CaseworkViews;
 import evidencelogger.service.dto.CheckoutViews;
+import javafx.scene.paint.Color;
 
 class InvestigatorWorkspaceViewTest {
     private static final Instant NOW = Instant.parse("2026-09-25T08:00:00Z");
+
+    @Test
+    void formatsAssignedCaseCreationTimeForTheCaseList() {
+        assertEquals("26/09/2026 17:05", InvestigatorWorkspaceView.formatCaseCreatedAt(
+                Instant.parse("2026-09-26T17:05:45Z")));
+    }
+
+    @Test
+    void formatsExpectedReturnTimeForTheRequestList() {
+        assertEquals("26/09/2026 17:05", InvestigatorWorkspaceView.formatRequestExpectedReturn(
+                Instant.parse("2026-09-26T17:05:45Z")));
+    }
+
+    @Test
+    void usesTheRequestedColourForEachEvidenceCustodyState() {
+        assertEquals(Color.GREEN, InvestigatorWorkspaceView.custodyStateColor(
+                EvidenceCustodyState.IN_STORAGE));
+        assertEquals(Color.ORANGE, InvestigatorWorkspaceView.custodyStateColor(
+                EvidenceCustodyState.HANDOFF_AWAITING_ACK));
+        assertEquals(Color.ORANGE, InvestigatorWorkspaceView.custodyStateColor(
+                EvidenceCustodyState.HANDIN_AWAITING_ACK));
+        assertEquals(Color.RED, InvestigatorWorkspaceView.custodyStateColor(
+                EvidenceCustodyState.CHECKED_OUT));
+    }
+
+    @Test
+    void usesTheRequestedColourForEachRequestStatus() {
+        assertEquals(Color.ORANGE, InvestigatorWorkspaceView.requestStatusColor(
+                CheckoutRequestStatus.PENDING));
+        assertEquals(Color.GREEN, InvestigatorWorkspaceView.requestStatusColor(
+                CheckoutRequestStatus.APPROVED));
+        assertEquals(Color.GREEN, InvestigatorWorkspaceView.requestStatusColor(
+                CheckoutRequestStatus.CONSUMED));
+        assertEquals(Color.RED, InvestigatorWorkspaceView.requestStatusColor(
+                CheckoutRequestStatus.REJECTED));
+        assertEquals(Color.RED, InvestigatorWorkspaceView.requestStatusColor(
+                CheckoutRequestStatus.WITHDRAWN));
+        assertEquals(Color.RED, InvestigatorWorkspaceView.requestStatusColor(
+                CheckoutRequestStatus.CANCELLED));
+    }
 
     @Test
     void enablesInitialActionsOnlyForPermittedSelectedStates() {
@@ -131,7 +173,8 @@ class InvestigatorWorkspaceViewTest {
             CheckoutRequestStatus status, Optional<HandoffId> handoffId) {
         return new CheckoutViews.Request(
                 new CheckoutRequestId(UUID.randomUUID()),
-                new EvidenceId(UUID.randomUUID()), "EV-001", new CaseId(UUID.randomUUID()),
+                new EvidenceId(UUID.randomUUID()), "EV-001", "Sealed bag", "Locker A",
+                new CaseId(UUID.randomUUID()),
                 "Case One", new UserId(UUID.randomUUID()), "Alex Investigator",
                 "Review seal", NOW.plusSeconds(3600), status,
                 EvidenceCustodyState.IN_STORAGE, NOW, handoffId, Optional.empty());

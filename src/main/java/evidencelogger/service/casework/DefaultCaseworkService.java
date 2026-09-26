@@ -203,6 +203,19 @@ public final class DefaultCaseworkService
     }
 
     @Override
+    public List<CaseworkViews.Evidence> listEvidenceForCase(CaseId caseId) {
+        Objects.requireNonNull(caseId, "caseId");
+        AuthenticatedSession session = sessions.requireSession();
+        Optional<UserId> investigatorId = queryScope(session);
+        if (investigatorId.isPresent()) {
+            authorization.requireAssignedInvestigator(caseId);
+        }
+        return runRead(() -> casework.listEvidenceForCase(caseId, investigatorId)).stream()
+                .map(DefaultCaseworkService::toView)
+                .toList();
+    }
+
+    @Override
     public List<CaseworkViews.Investigator> listInvestigators() {
         authorization.requireCustodian();
         return runRead(casework::listInvestigators).stream()

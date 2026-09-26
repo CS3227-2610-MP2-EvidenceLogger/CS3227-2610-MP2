@@ -238,6 +238,39 @@ public final class JdbcCaseworkRepository implements CaseworkRepository {
     }
 
     @Override
+    public List<EvidenceRecord> listEvidenceForCase(
+            CaseId caseId, Optional<UserId> assignedInvestigatorId) {
+        String assignmentJoin = assignedInvestigatorId.isPresent()
+                ? " JOIN case_assignment a ON a.case_id = c.id AND a.investigator_id = ?"
+                : "";
+        String sql = """
+                SELECT e.id, e.case_id, c.title AS case_title, e.public_reference,
+                       e.description, e.storage_location_id, l.name AS location_name,
+                       e.custody_state, e.registered_at
+                FROM evidence_item e
+                JOIN case_record c ON c.id = e.case_id
+                JOIN storage_location l ON l.id = e.storage_location_id
+                """ + assignmentJoin + """
+                 WHERE e.case_id = ?
+                 ORDER BY lower(e.public_reference), e.id
+                """;
+        return withConnection(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                int caseIndex = setOptionalInvestigator(
+                        statement, assignedInvestigatorId, 1);
+                statement.setString(caseIndex, caseId.toString());
+                try (ResultSet results = statement.executeQuery()) {
+                    List<EvidenceRecord> evidence = new ArrayList<>();
+                    while (results.next()) {
+                        evidence.add(mapEvidence(results));
+                    }
+                    return List.copyOf(evidence);
+                }
+            }
+        }, "list evidence for case");
+    }
+
+    @Override
     public List<InvestigatorRecord> listInvestigators() {
         return queryInvestigators("""
                 SELECT id, username, display_name

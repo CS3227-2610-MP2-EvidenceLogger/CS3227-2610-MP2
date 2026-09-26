@@ -216,6 +216,11 @@ class CaseworkControllerTest {
         }
 
         @Override
+        public List<CaseworkViews.Evidence> listEvidenceForCase(CaseId caseId) {
+            return evidence;
+        }
+
+        @Override
         public List<CaseworkViews.Investigator> listInvestigators() {
             return investigators;
         }
