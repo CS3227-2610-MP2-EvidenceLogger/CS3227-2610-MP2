@@ -50,10 +50,12 @@ public final class CustodianCaseworkView {
     private final ComboBox<CaseworkViews.Case> evidenceCase;
     private final ComboBox<CaseworkViews.StorageLocation> evidenceLocation;
     private final ListView<CaseworkViews.Evidence> evidenceResults;
+    private final CustodianWorkflowView workflowView;
 
     /** Creates all A4 casework screens and starts loading their reference data. */
     public CustodianCaseworkView(
             CaseworkController controller,
+            CustodianWorkflowController workflowController,
             Executor databaseExecutor,
             String displayName,
             Runnable signOut) {
@@ -69,6 +71,10 @@ public final class CustodianCaseworkView {
         evidenceCase = caseComboBox();
         evidenceLocation = locationComboBox();
         evidenceResults = new ListView<>();
+        workflowView = new CustodianWorkflowView(
+                Objects.requireNonNull(workflowController, "workflowController"),
+                databaseExecutor,
+                this::showStatus);
 
         configureLists();
         TabPane tabs = new TabPane(
@@ -76,7 +82,8 @@ public final class CustodianCaseworkView {
                 fixedTab("Assignments", assignmentScreen()),
                 fixedTab("Locations", locationScreen()),
                 fixedTab("Register evidence", registrationScreen()),
-                fixedTab("Evidence search", evidenceSearchScreen()));
+                fixedTab("Evidence search", evidenceSearchScreen()),
+                fixedTab("Checkout workflow", workflowView.view()));
         root = new BorderPane(tabs);
         root.setTop(WorkspaceHeader.create(headerConfiguration(displayName, signOut)));
         root.setBottom(status);
@@ -273,6 +280,7 @@ public final class CustodianCaseworkView {
         caseResults.setItems(FXCollections.observableArrayList(cases));
         replaceItems(assignmentCase, cases);
         replaceItems(evidenceCase, cases);
+        workflowView.showCases(cases);
     }
 
     /** Reloads Investigator choices and preserves valid selections. */

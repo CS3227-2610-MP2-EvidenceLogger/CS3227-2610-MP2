@@ -95,13 +95,13 @@ Legend: green solid nodes are represented by concrete source files today; amber 
 | `evidencelogger.app.session` | Package marker only | Observe authentication state and drive role navigation. It must not decide case access or accept a UI-supplied actor identity. |
 | `evidencelogger.ui.common` | `ApplicationShell` | Shared code-built controls, async task support, validation display, navigation shell, and user-readable error presentation. It must not authorize or mutate domain state. |
 | `evidencelogger.ui.login` | `LoginView`, `LoginController` | Sign-in view/controller using the authentication service; no direct database access. |
-| `evidencelogger.ui.custodian` | A4 casework view/controller | Custodian cases, assignments, locations, registration, and search. A5 workflow screens remain planned. |
-| `evidencelogger.ui.investigator` | Package marker only | Assigned-case search, requests, acknowledgment, notes, returns, and history. UI filtering is not the security boundary. |
+| `evidencelogger.ui.custodian` | Casework and checkout workflow views/controllers | Custodian cases, assignments, locations, registration, search, request decisions, handoffs, return inspection, and history. |
+| `evidencelogger.ui.investigator` | Investigator workspace view/controller | Assigned-case search, requests, acknowledgment, notes, returns, and history. UI filtering is not the security boundary. |
 | `evidencelogger.service` | `ServiceException` | Persistence-neutral failures translated to readable UI messages: unauthenticated, forbidden, validation, invalid transition, conflict, not found, and storage failure. |
 | `evidencelogger.service.auth` | Authentication, session, and authorization services | Password verification coordination, service-owned session issuance, role checks, and current-assignment checks. |
 | `evidencelogger.service.casework` | Authorized command/query service | Case creation, assignments, storage locations, evidence registration, and authorized case/evidence queries. |
-| `evidencelogger.service.checkout` | Command implementation and query interfaces | Request, decision, handoff, acknowledgment, note, return, inspection, and correction commands are implemented; query/UI integration remains staged. |
-| `evidencelogger.service.history` | Audit draft and append writer contract | Authorized ordered history and append-only corrections; audit writes use the caller-owned transaction connection. |
+| `evidencelogger.service.checkout` | Authorized command and query implementations | Request, decision, handoff, acknowledgment, note, return, inspection, and correction workflows and reads. |
+| `evidencelogger.service.history` | Audit writing and authorized query implementation | Authorized ordered history and append-only corrections; audit writes use the caller-owned transaction connection. |
 | `evidencelogger.service.dto` | Checkout command records and read models | Immutable, technology-neutral inputs/outputs between UI and services. No JavaFX or JDBC types. |
 | `evidencelogger.domain` | Typed IDs, role/state enums | Persistence/UI-independent values and state rules for request and custody transitions. |
 | `evidencelogger.repository` | Casework, checkout, authorization, and credential contracts | Narrow, business-oriented persistence contracts. No authorization or generic CRUD surface. |
@@ -122,13 +122,9 @@ Legend: green solid nodes are represented by concrete source files today; amber 
 
 ## Current implementation status
 
-Implemented today: JavaFX startup and login, Custodian A4 casework screens, authentication and
-session-backed authorization, casework services, checkout command workflows, JDBC repositories,
-SQLite migrations and transactions, PBKDF2 password verification, rotating diagnostic logging,
-typed domain/service contracts, and transactional audit-event writing. A successful Custodian
-login opens the casework workspace.
-
-Not implemented today: the separate Investigator workspace, Custodian A5 checkout/history
-screens, checkout query/history presentation, final two-role navigation, and logout. Investigator
-authentication is accepted and then explicitly signed out with an availability message until its
-workspace is integrated in A6.
+Implemented today: JavaFX startup and login, separate Custodian and Investigator workspaces,
+role-based navigation and logout, Custodian casework and checkout workflow screens, Investigator
+request/collection/note/return screens, authorized checkout and history reads, authentication and
+session-backed authorization, casework and checkout services, JDBC repositories, SQLite migrations
+and transactions, PBKDF2 password verification, rotating diagnostic logging, typed domain/service
+contracts, and transactional audit-event writing.

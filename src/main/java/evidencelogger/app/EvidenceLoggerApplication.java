@@ -16,6 +16,7 @@ import evidencelogger.service.auth.AuthenticationService;
 import evidencelogger.ui.common.ApplicationShell;
 import evidencelogger.ui.custodian.CaseworkController;
 import evidencelogger.ui.custodian.CustodianCaseworkView;
+import evidencelogger.ui.custodian.CustodianWorkflowController;
 import evidencelogger.ui.investigator.InvestigatorController;
 import evidencelogger.ui.investigator.InvestigatorWorkspaceView;
 import evidencelogger.ui.login.LoginController;
@@ -111,8 +112,13 @@ public final class EvidenceLoggerApplication extends Application {
     private void showCustodianWorkspace(ApplicationShell shell, AuthenticatedSession session) {
         CaseworkController controller = new CaseworkController(
                 composition.caseworkCommands(), composition.caseworkQueries());
+        CustodianWorkflowController workflowController = new CustodianWorkflowController(
+                composition.checkoutCommands(),
+                composition.checkoutQueries(),
+                composition.historyQueries());
         shell.showContent(new CustodianCaseworkView(
-                controller, databaseExecutor, session.displayName(), () -> {
+                controller, workflowController,
+                databaseExecutor, session.displayName(), () -> {
                     composition.authentication().signOut();
                     showLogin(shell, "");
                 }).view());
