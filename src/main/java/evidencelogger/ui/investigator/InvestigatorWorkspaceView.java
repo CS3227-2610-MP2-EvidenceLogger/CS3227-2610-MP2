@@ -20,6 +20,7 @@ import evidencelogger.ui.common.WorkspaceHeader;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
@@ -38,12 +39,14 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
+import javafx.scene.text.FontPosture;
 import javafx.scene.text.FontWeight;
 
 /** Mockup-inspired Investigator dashboard for authorized casework and requests. */
 public final class InvestigatorWorkspaceView {
     private static final double MINIMUM_BODY_WIDTH = 1400;
     private static final double SECTION_HEADING_FONT_SIZE = 16;
+    private static final int NOTE_PREVIEW_MAX_LENGTH = 60;
     private static final DateTimeFormatter CASE_CREATED_AT_FORMAT = DateTimeFormatter
             .ofPattern("dd/MM/uuuu HH:mm")
             .withZone(ZoneOffset.UTC);
@@ -97,6 +100,8 @@ public final class InvestigatorWorkspaceView {
         evidence.setCellFactory(ignored -> evidenceCell());
         requests.setCellFactory(ignored -> requestCell());
         checkouts.setCellFactory(ignored -> checkoutCell());
+        notes.setCellFactory(ignored -> noteCell());
+        history.setCellFactory(ignored -> historyCell());
         Button find = new Button("Search");
         find.setOnAction(event -> load(search.getText()));
         HBox searchRow = new HBox(8, search, find);
@@ -179,7 +184,10 @@ public final class InvestigatorWorkspaceView {
                     updateActionAvailability();
                 });
         notes.getSelectionModel().selectedItemProperty()
-                .addListener((observable, oldNote, selectedNote) -> updateActionAvailability());
+                .addListener((observable, oldNote, selectedNote) -> {
+                    showSelectedNote(selectedNote);
+                    updateActionAvailability();
+                });
         cases.getSelectionModel().selectedItemProperty()
                 .addListener((observable, oldCase, selectedCase) -> {
                     if (selectedCase != null) {
@@ -298,15 +306,17 @@ public final class InvestigatorWorkspaceView {
                     setGraphic(null);
                     return;
                 }
-                Label id = boldLabel(item.evidenceId().toString());
-                Label description = new Label(item.description());
+                Label id = boldLabel(item.publicReference());
+                Label description = new Label("Description: " + item.description());
                 Label location = new Label("Storage: " + item.storageLocationName());
                 Label custodyState = new Label(item.custodyState().name());
                 custodyState.setTextFill(custodyStateColor(item.custodyState()));
                 VBox details = new VBox(2, id, description, location);
-                HBox evidenceRow = new HBox(8, details, custodyState);
+                BorderPane evidenceRow = new BorderPane();
+                evidenceRow.setLeft(details);
+                evidenceRow.setBottom(custodyState);
+                BorderPane.setAlignment(custodyState, Pos.BOTTOM_RIGHT);
                 evidenceRow.setMaxWidth(Double.MAX_VALUE);
-                HBox.setHgrow(details, Priority.ALWAYS);
                 setText(null);
                 setGraphic(evidenceRow);
             }
@@ -340,8 +350,8 @@ public final class InvestigatorWorkspaceView {
                     return;
                 }
                 VBox details = new VBox(2,
-                        boldLabel(item.evidenceId() + " @ " + item.storageLocationName()),
-                        new Label("Case: " + item.caseTitle()),
+                        boldLabel("[" + item.caseTitle() + "] " + item.evidenceReference()),
+                        new Label("Storage: " + item.storageLocationName()),
                         new Label("Description: " + item.evidenceDescription()),
                         new Label("Expected Return: "
                                 + formatRequestExpectedReturn(item.expectedReturnAt())));
@@ -383,9 +393,8 @@ public final class InvestigatorWorkspaceView {
                     return;
                 }
                 VBox details = new VBox(2,
-                        boldLabel("Case Title and Evidence ID: " + item.caseTitle()
-                                + " (" + item.evidenceId() + ")"),
-                        new Label("Collected At: " + formatCheckoutTimestamp(item.collectedAt())));
+                        boldLabel("[" + item.caseTitle() + "] " + item.evidenceReference()),
+                        new Label("Collected: " + formatCheckoutTimestamp(item.collectedAt())));
                 HBox checkoutRow = new HBox(8, details);
                 checkoutRow.setMaxWidth(Double.MAX_VALUE);
                 HBox.setHgrow(details, Priority.ALWAYS);
@@ -393,12 +402,150 @@ public final class InvestigatorWorkspaceView {
                     Label returnInitiated = new Label(
                             "Return Initiated: " + formatCheckoutTimestamp(returnInitiatedAt));
                     returnInitiated.setTextFill(Color.GREEN);
-                    checkoutRow.getChildren().add(returnInitiated);
+                    returnInitiated.setFont(Font.font("System", FontPosture.ITALIC, 12));
+                    details.getChildren().add(returnInitiated);
                 });
                 setText(null);
                 setGraphic(checkoutRow);
             }
         };
+    }
+
+    /** Creates the compact presentation for a note belonging to the selected checkout. */
+    private static ListCell<CheckoutViews.ExaminationNote> noteCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(CheckoutViews.ExaminationNote item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                VBox details = new VBox(2,
+                        boldLabel(notePreview(item.text())), new Label(noteByline(item)));
+                BorderPane noteRow = new BorderPane();
+                noteRow.setTop(details);
+                noteRow.setMaxWidth(Double.MAX_VALUE);
+                item.corrections().stream().findFirst().ifPresent(ignored -> {
+                    Label correctionCount = new Label(correctionCountLabel(item));
+                    noteRow.setBottom(correctionCount);
+                    BorderPane.setAlignment(correctionCount, Pos.BOTTOM_RIGHT);
+                });
+                setText(null);
+                setGraphic(noteRow);
+            }
+        };
+    }
+
+    /** Creates the compact presentation for an immutable custody-history event. */
+    private static ListCell<HistoryViews.Event> historyCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(HistoryViews.Event item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                VBox details = new VBox(2,
+                        boldLabel(historyEventName(item)), new Label(historyByline(item)));
+                BorderPane historyRow = new BorderPane();
+                historyRow.setTop(details);
+                historyRow.setMaxWidth(Double.MAX_VALUE);
+                if (isCorrectionEvent(item)) {
+                    Label corrected = new Label("Corrected");
+                    historyRow.setBottom(corrected);
+                    BorderPane.setAlignment(corrected, Pos.BOTTOM_RIGHT);
+                }
+                setText(null);
+                setGraphic(historyRow);
+            }
+        };
+    }
+
+    /** Converts an audit event type to the readable name shown in custody history. */
+    static String historyEventName(HistoryViews.Event event) {
+        return switch (Objects.requireNonNull(event, "event").type()) {
+        case CASE_CREATED -> "Case created";
+        case CASE_ASSIGNED -> "Case assigned";
+        case CASE_UNASSIGNED -> "Case unassigned";
+        case LOCATION_ADDED -> "Location added";
+        case EVIDENCE_REGISTERED -> "Evidence registered";
+        case REQUEST_SUBMITTED -> "Request submitted";
+        case REQUEST_WITHDRAWN -> "Request withdrawn";
+        case REQUEST_APPROVED -> "Request approved";
+        case REQUEST_REJECTED -> "Request rejected";
+        case REQUEST_CANCELLED -> "Request cancelled";
+        case HANDOFF_RECORDED -> "Handoff recorded";
+        case HANDOFF_REVERSED -> "Handoff reversed";
+        case COLLECTION_ACKNOWLEDGED -> "Collection acknowledged";
+        case EXAMINATION_NOTE_ADDED -> "Examination note added";
+        case RETURN_INITIATED -> "Return initiated";
+        case RETURN_INSPECTED_STORED -> "Return inspected and stored";
+        case UNPLANNED_RETURN_INSPECTED -> "Unplanned return inspected";
+        case HISTORY_CORRECTED -> "History corrected";
+        case EXAMINATION_NOTE_CORRECTED -> "Examination note corrected";
+        };
+    }
+
+    /** Formats actor and time metadata for a custody-history entry. */
+    static String historyByline(HistoryViews.Event event) {
+        Objects.requireNonNull(event, "event");
+        return event.actorDisplayName() + " · " + formatCheckoutTimestamp(event.eventTime());
+    }
+
+    /** Determines whether a history entry represents an append-only correction. */
+    static boolean isCorrectionEvent(HistoryViews.Event event) {
+        return switch (Objects.requireNonNull(event, "event").type()) {
+        case HISTORY_CORRECTED, EXAMINATION_NOTE_CORRECTED -> true;
+        default -> false;
+        };
+    }
+
+    /** Produces the one-line note preview shown in the selected checkout's note list. */
+    static String notePreview(String text) {
+        String firstLine = Objects.requireNonNull(text, "text").lines()
+                .findFirst()
+                .orElse("")
+                .strip();
+        if (firstLine.length() <= NOTE_PREVIEW_MAX_LENGTH) {
+            return text.contains("\n") ? firstLine + "…" : firstLine;
+        }
+        return firstLine.substring(0, NOTE_PREVIEW_MAX_LENGTH - 1) + "…";
+    }
+
+    /** Formats the secondary author and time metadata for a note entry. */
+    static String noteByline(CheckoutViews.ExaminationNote note) {
+        Objects.requireNonNull(note, "note");
+        return note.authorDisplayName() + " · " + formatCheckoutTimestamp(note.createdAt());
+    }
+
+    /** Formats the optional correction count shown in the note entry's lower-right corner. */
+    static String correctionCountLabel(CheckoutViews.ExaminationNote note) {
+        int correctionCount = Objects.requireNonNull(note, "note").corrections().size();
+        return correctionCount + (correctionCount == 1 ? " correction" : " corrections");
+    }
+
+    /** Formats the full selected note and every immutable correction for the disabled viewer. */
+    static String formatSelectedNote(CheckoutViews.ExaminationNote note) {
+        Objects.requireNonNull(note, "note");
+        StringBuilder formatted = new StringBuilder(note.text());
+        String divider = "\n------------------------------------------------------";
+        formatted.append(divider);
+        for (CheckoutViews.NoteCorrection correction : note.corrections()) {
+            formatted.append("\nCorrection by ")
+                    .append(correction.authorDisplayName())
+                    .append(" · ")
+                    .append(formatCheckoutTimestamp(correction.createdAt()))
+                    .append("\n")
+                    .append(correction.correctionText())
+                    .append("\nReason: ")
+                    .append(correction.reason())
+                    .append(divider);
+        }
+        return formatted.toString();
     }
 
     /** Formats checkout timestamps for the Investigator display. */
@@ -445,10 +592,23 @@ public final class InvestigatorWorkspaceView {
 
     /** Reloads notes when an active checkout is selected. */
     private void loadNotes() {
-        if (selectedCheckoutId() != null) {
-            run(null, () -> controller.listNotes(selectedCheckoutId()),
-                    value -> notes.setItems(FXCollections.observableArrayList(value)));
+        CheckoutId checkoutId = selectedCheckoutId();
+        notes.getSelectionModel().clearSelection();
+        noteEditor.clear();
+        if (checkoutId == null) {
+            notes.setItems(FXCollections.observableArrayList());
+            return;
         }
+        run(null, () -> controller.listNotes(checkoutId), value -> {
+            if (checkoutId.equals(selectedCheckoutId())) {
+                notes.setItems(FXCollections.observableArrayList(value));
+            }
+        });
+    }
+
+    /** Displays the full note and corrections while preserving disabled state after return initiation. */
+    private void showSelectedNote(CheckoutViews.ExaminationNote selectedNote) {
+        noteEditor.setText(selectedNote == null ? "" : formatSelectedNote(selectedNote));
     }
 
     /** Applies workflow action availability derived from the current selections. */
