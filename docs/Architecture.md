@@ -14,8 +14,8 @@ flowchart TB
         APP[evidencelogger.app\nApplication + Launcher]:::present
         SHELL[evidencelogger.ui.common\nApplicationShell]:::present
         LOGIN[evidencelogger.ui.login\nLogin view/controller]:::present
-        CUST[evidencelogger.ui.custodian\nA4 Custodian casework UI]:::present
-        INV[evidencelogger.ui.investigator\nInvestigator views/controllers]:::planned
+        CUST[evidencelogger.ui.custodian\nCustodian casework/workflow UI]:::present
+        INV[evidencelogger.ui.investigator\nInvestigator workspace]:::present
         SESSION[evidencelogger.app.session\nNavigation/session observation]:::planned
     end
 
@@ -93,7 +93,7 @@ Legend: green solid nodes are represented by concrete source files today; amber 
 | --- | --- | --- |
 | `evidencelogger.app` | `EvidenceLoggerApplication`, `EvidenceLoggerLauncher` | JavaFX lifecycle, object-graph composition, startup/shutdown, application-data path, migrations, and executor ownership. It must not contain workflow rules or SQL. |
 | `evidencelogger.app.session` | Package marker only | Observe authentication state and drive role navigation. It must not decide case access or accept a UI-supplied actor identity. |
-| `evidencelogger.ui.common` | `ApplicationShell` | Shared code-built controls, async task support, validation display, navigation shell, and user-readable error presentation. It must not authorize or mutate domain state. |
+| `evidencelogger.ui.common` | Application shell, workspace header, history formatting, and service-failure presentation | Shared code-built controls, presentation helpers, navigation shell, and user-readable error presentation. It must not authorize or mutate domain state. |
 | `evidencelogger.ui.login` | `LoginView`, `LoginController` | Sign-in view/controller using the authentication service; no direct database access. |
 | `evidencelogger.ui.custodian` | Casework and checkout workflow views/controllers | Custodian cases, assignments, locations, registration, search, request decisions, handoffs, return inspection, and history. |
 | `evidencelogger.ui.investigator` | Investigator workspace view/controller | Assigned-case search, requests, acknowledgment, notes, returns, and history. UI filtering is not the security boundary. |
@@ -124,7 +124,7 @@ Legend: green solid nodes are represented by concrete source files today; amber 
 
 Implemented today: JavaFX startup and login, separate Custodian and Investigator workspaces,
 role-based navigation and logout, Custodian casework and checkout workflow screens, Investigator
-request/collection/note/return screens, authorized checkout and history reads, authentication and
-session-backed authorization, casework and checkout services, JDBC repositories, SQLite migrations
-and transactions, PBKDF2 password verification, rotating diagnostic logging, typed domain/service
-contracts, and transactional audit-event writing.
+request/collection/note/return screens, authorized ordered history and append-only documentary
+corrections, authentication and session-backed authorization, casework and checkout services, JDBC
+repositories, SQLite migrations and transactions, PBKDF2 password verification, rotating
+diagnostic logging, typed domain/service contracts, and transactional audit-event writing.

@@ -15,6 +15,7 @@ import evidencelogger.domain.EvidenceCustodyState;
 import evidencelogger.service.dto.CaseworkViews;
 import evidencelogger.service.dto.CheckoutViews;
 import evidencelogger.service.dto.HistoryViews;
+import evidencelogger.ui.common.HistoryEventFormatter;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
@@ -200,7 +201,7 @@ public final class CustodianWorkflowView {
         decisionRequests.setCellFactory(list -> textCell(CustodianWorkflowView::requestText));
         handoffRequests.setCellFactory(list -> textCell(CustodianWorkflowView::requestText));
         returnCheckouts.setCellFactory(list -> textCell(CustodianWorkflowView::checkoutText));
-        historyEvents.setCellFactory(list -> textCell(CustodianWorkflowView::historyText));
+        historyEvents.setCellFactory(list -> textCell(HistoryEventFormatter::format));
         historyCase.setConverter(converter(CaseworkViews.Case::title));
         historyCase.setMaxWidth(Double.MAX_VALUE);
         historyEvents.getSelectionModel().selectedItemProperty().addListener((
@@ -391,18 +392,6 @@ public final class CustodianWorkflowView {
         return String.format("%s | %s | collected by %s | %s",
                 checkout.evidenceReference(), checkout.caseTitle(),
                 checkout.collectorDisplayName(), checkout.evidenceState());
-    }
-
-    private static String historyText(HistoryViews.Event event) {
-        String detail = event.correctionText().orElse(event.reason().orElse(""));
-        String target = event.correctedEventId()
-                .map(id -> " | corrects " + id)
-                .orElse("");
-        return String.format("%s | %s | %s (%s)%s%s",
-                TIME_FORMAT.format(event.eventTime()), event.type(),
-                event.actorDisplayName(), event.actorRole(),
-                detail.isBlank() ? "" : " | " + detail,
-                target);
     }
 
     private static Tab fixedTab(String title, Parent content) {

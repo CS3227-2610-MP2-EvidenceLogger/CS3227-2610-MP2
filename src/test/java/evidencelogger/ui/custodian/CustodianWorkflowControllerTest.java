@@ -155,6 +155,15 @@ class CustodianWorkflowControllerTest {
                 NOW,
                 Optional.empty(),
                 Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
                 Optional.empty());
 
         assertFalse(controller.correctHistory(null, "Corrected", "Mistake").successful());
