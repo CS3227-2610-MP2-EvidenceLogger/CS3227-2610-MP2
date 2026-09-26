@@ -194,15 +194,22 @@ public final class InvestigatorWorkspaceView {
 
         HBox requestActions = new HBox(8, withdrawRequest, acknowledgeCollection);
         VBox myRequests = new VBox(8,
-                new Label("Select assigned evidence to request."), requestError, requestRow,
-                requests, requestActions);
+                requests, requestActions, new Label(
+                        "Select assigned evidence to request (in the "
+                                + "`Evidence for Selected Case` section)."),
+                requestError, requestRow);
         myRequests.setPadding(new Insets(12));
         VBox.setVgrow(requests, Priority.ALWAYS);
-        VBox activeCheckout = new VBox(8,
-                checkouts, notes, noteEditor, addNote, correctionText, correctionReason,
-                correctNote, initiateReturn);
-        activeCheckout.setPadding(new Insets(12));
+        VBox checkoutColumn = new VBox(8, sectionHeading("Checkouts"), checkouts,
+                initiateReturn);
+        VBox notesColumn = new VBox(8, sectionHeading("Examination Notes"), notes,
+                noteEditor, addNote, correctionText, correctionReason, correctNote);
+        VBox.setVgrow(notes, Priority.ALWAYS);
         VBox.setVgrow(checkouts, Priority.ALWAYS);
+        HBox activeCheckout = new HBox(12, checkoutColumn, notesColumn);
+        activeCheckout.setPadding(new Insets(12));
+        HBox.setHgrow(checkoutColumn, Priority.ALWAYS);
+        HBox.setHgrow(notesColumn, Priority.ALWAYS);
         TabPane workflowTabs = new TabPane(
                 fixedTab("My Requests", myRequests),
                 fixedTab("Active Checkout", activeCheckout));
