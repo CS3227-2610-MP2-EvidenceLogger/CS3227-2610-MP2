@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import evidencelogger.domain.CheckoutRequestId;
 import evidencelogger.domain.EvidenceId;
+import evidencelogger.service.ServiceException;
 import evidencelogger.service.checkout.CheckoutCommandService;
 import evidencelogger.service.dto.CaseworkViews;
 
@@ -80,6 +81,27 @@ class InvestigatorControllerTest {
 
         assertFalse(result.successful());
         assertEquals("The request is no longer assigned to you", result.message());
+    }
+
+    @Test
+    void storageFailureIncludesDiagnosticReference() {
+        CheckoutCommandService commands = new RecordingCommands() {
+            @Override
+            public void withdrawRequest(
+                    evidencelogger.service.dto.CheckoutCommands.WithdrawRequest command) {
+                throw new ServiceException.StorageFailure(
+                        "Checkout data could not be read",
+                        new IllegalStateException("database unavailable"));
+            }
+        };
+        InvestigatorController controller = InvestigatorController.forCommands(commands);
+
+        InvestigatorController.Result<?> result = controller.withdrawRequest(
+                new CheckoutRequestId(UUID.randomUUID()));
+
+        assertFalse(result.successful());
+        assertTrue(result.message().startsWith(
+                "Checkout data could not be read. Reference: "));
     }
 
     private static class RecordingCommands implements CheckoutCommandService {

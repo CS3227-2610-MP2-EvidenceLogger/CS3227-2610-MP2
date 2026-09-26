@@ -21,6 +21,7 @@ import evidencelogger.repository.UserAccountRepository;
 import evidencelogger.service.ServiceException;
 import evidencelogger.service.auth.AuthenticationService;
 import evidencelogger.service.auth.SessionManager;
+import evidencelogger.ui.common.ServiceFailurePresenter;
 
 class LoginControllerTest {
     private static final UserId USER_ID = UserId.parse(
@@ -99,7 +100,7 @@ class LoginControllerTest {
                 }, (password, algorithm, iterations, salt, hash) -> false,
                 sessions));
         CapturingHandler handler = new CapturingHandler();
-        Logger logger = Logger.getLogger(LoginController.class.getName());
+        Logger logger = Logger.getLogger(ServiceFailurePresenter.class.getName());
         logger.addHandler(handler);
         try {
             LoginController.Result result = failingController.signIn(
