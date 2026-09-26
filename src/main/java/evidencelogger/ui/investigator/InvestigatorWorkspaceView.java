@@ -99,21 +99,30 @@ public final class InvestigatorWorkspaceView {
         TextField purpose = new TextField();
         purpose.setPromptText("Purpose");
         TextField expected = new TextField();
-        expected.setPromptText("Expected return UTC (2026-09-26T17:00:00Z)");
+        expected.setPromptText("DD/MM/YYYY HH:MM");
+        Label expectedLabel = new Label("Expected Return (Format: DD/MM/YYYY HH:MM):");
+        HBox expectedRow = new HBox(8, expectedLabel, expected);
+        HBox.setHgrow(expected, Priority.ALWAYS);
+        Label requestError = new Label();
+        requestError.setTextFill(Color.RED);
+        requestError.setWrapText(true);
         submitRequest = new Button("Submit Checkout Request");
-        VBox requestFields = new VBox(8, purpose, expected);
+        VBox requestFields = new VBox(8, purpose, expectedRow);
         HBox.setHgrow(requestFields, Priority.ALWAYS);
         submitRequest.setMaxHeight(Double.MAX_VALUE);
         HBox requestRow = new HBox(8, requestFields, submitRequest);
         withdrawRequest = new Button("Withdraw pending request");
-        submitRequest.setOnAction(event -> run(submitRequest, () -> controller.submitRequest(
-                evidence.getSelectionModel().getSelectedItem(),
-                        purpose.getText(), expected.getText()),
+        submitRequest.setOnAction(event -> {
+            requestError.setText("");
+            run(submitRequest, () -> controller.submitRequest(
+                    evidence.getSelectionModel().getSelectedItem(),
+                    purpose.getText(), expected.getText()),
                 ignored -> {
                     purpose.clear();
                     expected.clear();
                     load();
-                }));
+                }, requestError::setText);
+        });
         withdrawRequest.setOnAction(event -> run(withdrawRequest, () -> controller.withdrawRequest(
                 selectedRequestId()), ignored -> load()));
         evidence.getSelectionModel().selectedItemProperty().addListener((
@@ -176,7 +185,7 @@ public final class InvestigatorWorkspaceView {
                 });
 
         VBox right = panel("Evidence Details & Request",
-                new Label("Select assigned evidence to request."), requestRow,
+                new Label("Select assigned evidence to request."), requestError, requestRow,
                 sectionHeading("My Requests"), requests, withdrawRequest,
                 acknowledgeCollection, sectionHeading("Active Checkout"), checkouts, notes,
                 noteEditor, addNote, correctionText, correctionReason, correctNote,
@@ -410,6 +419,11 @@ public final class InvestigatorWorkspaceView {
     /** Dispatches service work and maps its result to dashboard status and button state. */
     private <T> void run(Button button, Supplier<InvestigatorController.Result<T>> task,
             Consumer<T> success) {
+        run(button, task, success, status::setText);
+    }
+
+    private <T> void run(Button button, Supplier<InvestigatorController.Result<T>> task,
+            Consumer<T> success, Consumer<String> failure) {
         dispatchTask(databaseExecutor, task,
                 busy -> {
                     if (button != null) {
@@ -421,7 +435,7 @@ public final class InvestigatorWorkspaceView {
                     success.accept(value);
                     status.setText("Workspace refreshed");
                 },
-                status::setText);
+                failure);
     }
 
     /** Dispatches a database task and returns its result rendering to the UI boundary. */

@@ -1,7 +1,10 @@
 package evidencelogger.ui.investigator;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -24,6 +27,10 @@ import evidencelogger.ui.common.ServiceFailurePresenter;
 
 /** Presentation logic for assignment-scoped Investigator dashboard actions. */
 public final class InvestigatorController {
+    private static final DateTimeFormatter EXPECTED_RETURN_FORMAT = DateTimeFormatter
+            .ofPattern("dd/MM/uuuu HH:mm")
+            .withResolverStyle(ResolverStyle.STRICT);
+
     private final CaseworkQueryService caseworkQueries;
     private final CheckoutQueryService checkoutQueries;
     private final CheckoutCommandService commands;
@@ -154,17 +161,14 @@ public final class InvestigatorController {
             return Result.failure("Purpose is required");
         }
         if (time == null || time.isBlank()) {
-            return Result.failure(
-                    "Expected return must be a UTC timestamp, for example "
-                            + "2026-09-26T17:00:00Z");
+            return Result.failure("Expected return date and time is required");
         }
         try {
             return execute(() -> commands.submitRequest(new CheckoutCommands.SubmitRequest(
-                    evidence.evidenceId(), purpose.strip(), Instant.parse(time.strip()))));
+                    evidence.evidenceId(), purpose.strip(), LocalDateTime.parse(
+                            time.strip(), EXPECTED_RETURN_FORMAT).toInstant(ZoneOffset.UTC))));
         } catch (DateTimeParseException exception) {
-            return Result.failure(
-                    "Expected return must be a UTC timestamp, for example "
-                            + "2026-09-26T17:00:00Z");
+            return Result.failure("Expected return date and time must use DD/MM/YYYY HH:MM");
         }
     }
 

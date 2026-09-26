@@ -26,7 +26,7 @@ class InvestigatorControllerTest {
         InvestigatorController.Result<?> invalid = controller.submitRequest(
                 evidence, " ", "not-a-timestamp");
         InvestigatorController.Result<?> submitted = controller.submitRequest(
-                evidence, "Review seal", "2026-09-26T17:00:00Z");
+                evidence, "Review seal", "26/09/2026 17:00");
 
         assertFalse(invalid.successful());
         assertEquals("Purpose is required", invalid.message());
@@ -45,7 +45,26 @@ class InvestigatorControllerTest {
                 InvestigatorFixtures.evidence(), "Review seal", null);
 
         assertFalse(result.successful());
-        assertTrue(result.message().startsWith("Expected return must be a UTC timestamp"));
+        assertEquals("Expected return date and time is required", result.message());
+        assertNull(commands.evidenceId);
+    }
+
+    @Test
+    void rejectsAnInvalidExpectedReturnDateOrTimeWithoutCallingTheCommandService() {
+        RecordingCommands commands = new RecordingCommands();
+        InvestigatorController controller = InvestigatorController.forCommands(commands);
+
+        InvestigatorController.Result<?> invalidDate = controller.submitRequest(
+                InvestigatorFixtures.evidence(), "Review seal", "31/02/2026 17:00");
+        InvestigatorController.Result<?> invalidTime = controller.submitRequest(
+                InvestigatorFixtures.evidence(), "Review seal", "26/09/2026 24:00");
+
+        assertFalse(invalidDate.successful());
+        assertFalse(invalidTime.successful());
+        assertEquals("Expected return date and time must use DD/MM/YYYY HH:MM",
+                invalidDate.message());
+        assertEquals("Expected return date and time must use DD/MM/YYYY HH:MM",
+                invalidTime.message());
         assertNull(commands.evidenceId);
     }
 
