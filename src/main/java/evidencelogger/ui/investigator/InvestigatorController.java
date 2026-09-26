@@ -20,6 +20,7 @@ import evidencelogger.service.dto.CheckoutCommands;
 import evidencelogger.service.dto.CheckoutViews;
 import evidencelogger.service.dto.HistoryViews;
 import evidencelogger.service.history.HistoryQueryService;
+import evidencelogger.ui.common.ServiceFailurePresenter;
 
 /** Presentation logic for assignment-scoped Investigator dashboard actions. */
 public final class InvestigatorController {
@@ -166,7 +167,8 @@ public final class InvestigatorController {
         try {
             return Result.success(operation.get());
         } catch (ServiceException exception) {
-            return Result.failure(exception.getMessage());
+            return Result.failure(ServiceFailurePresenter.messageFor(
+                    exception, "Investigator workspace"));
         }
     }
 

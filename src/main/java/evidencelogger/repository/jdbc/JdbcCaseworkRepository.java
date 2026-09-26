@@ -215,6 +215,7 @@ public final class JdbcCaseworkRepository implements CaseworkRepository {
                  WHERE instr(lower(e.public_reference), lower(?)) > 0
                     OR instr(lower(e.description), lower(?)) > 0
                     OR instr(lower(c.title), lower(?)) > 0
+                    OR instr(lower(l.name), lower(?)) > 0
                  ORDER BY lower(e.public_reference), e.id
                 """;
         return withConnection(connection -> {
@@ -224,6 +225,7 @@ public final class JdbcCaseworkRepository implements CaseworkRepository {
                 statement.setString(searchIndex, searchText);
                 statement.setString(searchIndex + 1, searchText);
                 statement.setString(searchIndex + 2, searchText);
+                statement.setString(searchIndex + 3, searchText);
                 try (ResultSet results = statement.executeQuery()) {
                     List<EvidenceRecord> evidence = new ArrayList<>();
                     while (results.next()) {

@@ -1,18 +1,14 @@
 package evidencelogger.ui.login;
 
 import java.util.Objects;
-import java.util.UUID;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import evidencelogger.service.ServiceException;
 import evidencelogger.service.auth.AuthenticatedSession;
 import evidencelogger.service.auth.AuthenticationService;
+import evidencelogger.ui.common.ServiceFailurePresenter;
 
 /** Presentation logic for credential-based sign-in. */
 public final class LoginController {
-    private static final Logger LOGGER = Logger.getLogger(LoginController.class.getName());
-
     private final AuthenticationService authentication;
 
     /** Creates a controller backed by the shared authentication service. */
@@ -26,15 +22,7 @@ public final class LoginController {
         try {
             return Result.success(authentication.signIn(username, password));
         } catch (ServiceException exception) {
-            if (exception instanceof ServiceException.StorageFailure) {
-                String diagnosticId = UUID.randomUUID().toString();
-                LOGGER.log(Level.SEVERE,
-                        "Sign-in storage failure [operationId=" + diagnosticId + "]",
-                        exception);
-                return Result.failure(exception.getMessage()
-                        + ". Reference: " + diagnosticId);
-            }
-            return Result.failure(exception.getMessage());
+            return Result.failure(ServiceFailurePresenter.messageFor(exception, "Sign-in"));
         }
     }
 

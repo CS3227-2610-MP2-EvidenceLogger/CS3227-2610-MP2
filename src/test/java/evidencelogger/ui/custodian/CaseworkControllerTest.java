@@ -138,6 +138,20 @@ class CaseworkControllerTest {
         assertEquals("Location already exists", result.message());
     }
 
+    @Test
+    void storageFailureIncludesDiagnosticReference() {
+        service.failure = new ServiceException.StorageFailure(
+                "Casework data could not be read",
+                new IllegalStateException("database unavailable"));
+
+        CaseworkController.Result<StorageLocationId> result =
+                controller.addStorageLocation("Locker A");
+
+        assertFalse(result.successful());
+        assertTrue(result.message().startsWith(
+                "Casework data could not be read. Reference: "));
+    }
+
     private static final class FakeCaseworkService
             implements CaseworkCommandService, CaseworkQueryService {
         private List<CaseworkViews.Case> cases = List.of();

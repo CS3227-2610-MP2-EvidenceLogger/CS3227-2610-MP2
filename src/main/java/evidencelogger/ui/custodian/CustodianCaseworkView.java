@@ -10,6 +10,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import evidencelogger.service.dto.CaseworkViews;
+import evidencelogger.ui.common.WorkspaceHeader;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
@@ -49,10 +50,15 @@ public final class CustodianCaseworkView {
     private final ComboBox<CaseworkViews.Case> evidenceCase;
     private final ComboBox<CaseworkViews.StorageLocation> evidenceLocation;
     private final ListView<CaseworkViews.Evidence> evidenceResults;
+    private final CustodianWorkflowView workflowView;
 
     /** Creates all A4 casework screens and starts loading their reference data. */
     public CustodianCaseworkView(
-            CaseworkController controller, Executor databaseExecutor) {
+            CaseworkController controller,
+            CustodianWorkflowController workflowController,
+            Executor databaseExecutor,
+            String displayName,
+            Runnable signOut) {
         this.controller = Objects.requireNonNull(controller, "controller");
         this.databaseExecutor = Objects.requireNonNull(databaseExecutor, "databaseExecutor");
         status = new Label("Loading casework data...");
@@ -65,6 +71,10 @@ public final class CustodianCaseworkView {
         evidenceCase = caseComboBox();
         evidenceLocation = locationComboBox();
         evidenceResults = new ListView<>();
+        workflowView = new CustodianWorkflowView(
+                Objects.requireNonNull(workflowController, "workflowController"),
+                databaseExecutor,
+                this::showStatus);
 
         configureLists();
         TabPane tabs = new TabPane(
@@ -72,8 +82,10 @@ public final class CustodianCaseworkView {
                 fixedTab("Assignments", assignmentScreen()),
                 fixedTab("Locations", locationScreen()),
                 fixedTab("Register evidence", registrationScreen()),
-                fixedTab("Evidence search", evidenceSearchScreen()));
+                fixedTab("Evidence search", evidenceSearchScreen()),
+                fixedTab("Checkout workflow", workflowView.view()));
         root = new BorderPane(tabs);
+        root.setTop(WorkspaceHeader.create(headerConfiguration(displayName, signOut)));
         root.setBottom(status);
         BorderPane.setMargin(status, new Insets(SPACING));
         refreshReferenceData();
@@ -84,6 +96,12 @@ public final class CustodianCaseworkView {
         return root;
     }
 
+    static WorkspaceHeader.Configuration headerConfiguration(
+            String displayName, Runnable signOut) {
+        return new WorkspaceHeader.Configuration("Custodian Workspace", displayName, signOut);
+    }
+
+    /** Builds case creation and search controls with their asynchronous actions. */
     private Parent caseScreen() {
         TextField search = new TextField();
         search.setPromptText("Case title");
@@ -117,6 +135,7 @@ public final class CustodianCaseworkView {
         return content;
     }
 
+    /** Builds assignment maintenance controls and refreshes the selected case on changes. */
     private Parent assignmentScreen() {
         Button load = new Button("Load assignments");
         load.setOnAction(event -> refreshAssignments(load));
@@ -158,6 +177,7 @@ public final class CustodianCaseworkView {
         return content;
     }
 
+    /** Builds storage-location maintenance controls and refreshes location choices on success. */
     private Parent locationScreen() {
         TextField name = new TextField();
         name.setPromptText("New storage location");
@@ -179,6 +199,7 @@ public final class CustodianCaseworkView {
         return content;
     }
 
+    /** Builds the evidence-registration form from the current case and location choices. */
     private Parent registrationScreen() {
         TextField description = new TextField();
         description.setPromptText("Short evidence description");
@@ -209,6 +230,7 @@ public final class CustodianCaseworkView {
                 form);
     }
 
+    /** Builds evidence search controls and renders authorized results. */
     private Parent evidenceSearchScreen() {
         TextField search = new TextField();
         search.setPromptText("Reference, description, case, or location");
@@ -226,6 +248,7 @@ public final class CustodianCaseworkView {
         return content;
     }
 
+    /** Configures user-readable rendering for every casework result list. */
     private void configureLists() {
         caseResults.setCellFactory(list -> textCell(CaseworkViews.Case::title));
         currentAssignments.setCellFactory(list -> textCell(
@@ -240,6 +263,7 @@ public final class CustodianCaseworkView {
                 item.custodyState())));
     }
 
+    /** Starts the initial asynchronous refresh of all casework reference data. */
     private void refreshReferenceData() {
         refreshCases();
         refreshInvestigators();
@@ -251,12 +275,15 @@ public final class CustodianCaseworkView {
         run(null, () -> controller.searchCases(""), this::showCases, "Cases refreshed");
     }
 
+    /** Renders cases and synchronizes each case-selection control on the JavaFX thread. */
     private void showCases(List<CaseworkViews.Case> cases) {
         caseResults.setItems(FXCollections.observableArrayList(cases));
         replaceItems(assignmentCase, cases);
         replaceItems(evidenceCase, cases);
+        workflowView.showCases(cases);
     }
 
+    /** Reloads Investigator choices and preserves valid selections. */
     private void refreshInvestigators() {
         run(null, controller::listInvestigators, investigators -> {
             replaceItems(initialInvestigator, investigators);
@@ -264,6 +291,7 @@ public final class CustodianCaseworkView {
         }, "Investigators refreshed");
     }
 
+    /** Reloads assignments for the selected case while managing the initiating button. */
     private void refreshAssignments(Button initiatingButton) {
         CaseworkViews.Case selectedCase = assignmentCase.getValue();
         run(initiatingButton, () ->
@@ -273,6 +301,7 @@ public final class CustodianCaseworkView {
                 "Assignments refreshed");
     }
 
+    /** Reloads storage locations for listing and evidence registration. */
     private void refreshLocations() {
         run(null, controller::listStorageLocations, locations -> {
             locationResults.setItems(FXCollections.observableArrayList(locations));
@@ -288,6 +317,7 @@ public final class CustodianCaseworkView {
         evidenceResults.setItems(FXCollections.observableArrayList(evidence));
     }
 
+    /** Runs service work off the JavaFX thread and renders its safe result back on that thread. */
     private <T> void run(
             Button initiatingButton,
             Supplier<CaseworkController.Result<T>> operation,

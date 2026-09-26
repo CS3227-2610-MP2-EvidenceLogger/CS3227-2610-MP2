@@ -157,6 +157,26 @@ class DefaultCaseworkServiceIntegrationTest {
     }
 
     @Test
+    void evidenceSearchIncludesStorageLocationName() {
+        CaseId caseId = service.createCase(
+                new CaseworkCommands.CreateCase("Location search case", ALEX_ID));
+        StorageLocationId matchingLocation = service.addStorageLocation(
+                new CaseworkCommands.AddStorageLocation("Secure Vault Alpha"));
+        StorageLocationId otherLocation = service.addStorageLocation(
+                new CaseworkCommands.AddStorageLocation("Locker B"));
+        service.registerEvidence(new CaseworkCommands.RegisterEvidence(
+                caseId, "First sealed item", matchingLocation));
+        service.registerEvidence(new CaseworkCommands.RegisterEvidence(
+                caseId, "Second sealed item", otherLocation));
+
+        List<CaseworkViews.Evidence> results = service.searchEvidence("vault alpha");
+
+        assertEquals(List.of("Secure Vault Alpha"), results.stream()
+                .map(CaseworkViews.Evidence::storageLocationName)
+                .toList());
+    }
+
+    @Test
     void assignmentRemovalRejectsActiveRequestAndUninspectedCheckout()
             throws SQLException {
         CaseId caseId = service.createCase(

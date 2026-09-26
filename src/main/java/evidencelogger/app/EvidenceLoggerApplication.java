@@ -16,6 +16,7 @@ import evidencelogger.service.auth.AuthenticationService;
 import evidencelogger.ui.common.ApplicationShell;
 import evidencelogger.ui.custodian.CaseworkController;
 import evidencelogger.ui.custodian.CustodianCaseworkView;
+import evidencelogger.ui.custodian.CustodianWorkflowController;
 import evidencelogger.ui.investigator.InvestigatorController;
 import evidencelogger.ui.investigator.InvestigatorWorkspaceView;
 import evidencelogger.ui.login.LoginController;
@@ -82,6 +83,7 @@ public final class EvidenceLoggerApplication extends Application {
         }
     }
 
+    /** Creates the single daemon executor used for database work outside the JavaFX thread. */
     private static ExecutorService createDatabaseExecutor() {
         return Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable, "evidencelogger-database");
@@ -90,11 +92,12 @@ public final class EvidenceLoggerApplication extends Application {
         });
     }
 
+    /** Replaces protected content with the login view and its optional navigation message. */
     private void showLogin(ApplicationShell shell, String message) {
         LoginController controller = new LoginController(composition.authentication());
         AuthenticatedRoleRouter router = new AuthenticatedRoleRouter(
                 composition.authentication(),
-                session -> showCustodianWorkspace(shell),
+                session -> showCustodianWorkspace(shell, session),
                 session -> showInvestigatorWorkspace(shell, session),
                 messageText -> showLogin(shell, messageText));
         LoginView login = new LoginView(
@@ -105,13 +108,23 @@ public final class EvidenceLoggerApplication extends Application {
         shell.showContent(login.view());
     }
 
-    private void showCustodianWorkspace(ApplicationShell shell) {
+    /** Composes and displays the Custodian workspace for the authenticated session. */
+    private void showCustodianWorkspace(ApplicationShell shell, AuthenticatedSession session) {
         CaseworkController controller = new CaseworkController(
                 composition.caseworkCommands(), composition.caseworkQueries());
+        CustodianWorkflowController workflowController = new CustodianWorkflowController(
+                composition.checkoutCommands(),
+                composition.checkoutQueries(),
+                composition.historyQueries());
         shell.showContent(new CustodianCaseworkView(
-                controller, databaseExecutor).view());
+                controller, workflowController,
+                databaseExecutor, session.displayName(), () -> {
+                    composition.authentication().signOut();
+                    showLogin(shell, "");
+                }).view());
     }
 
+    /** Composes and displays the Investigator workspace for the authenticated session. */
     private void showInvestigatorWorkspace(ApplicationShell shell, AuthenticatedSession session) {
         InvestigatorController controller = new InvestigatorController(
                 composition.caseworkQueries(),

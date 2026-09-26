@@ -12,6 +12,7 @@ import evidencelogger.service.casework.CaseworkCommandService;
 import evidencelogger.service.casework.CaseworkQueryService;
 import evidencelogger.service.dto.CaseworkCommands;
 import evidencelogger.service.dto.CaseworkViews;
+import evidencelogger.ui.common.ServiceFailurePresenter;
 
 /** Presentation logic for the Custodian casework screens. */
 public final class CaseworkController {
@@ -126,7 +127,8 @@ public final class CaseworkController {
         try {
             return Result.success(operation.get());
         } catch (ServiceException exception) {
-            return Result.failure(exception.getMessage());
+            return Result.failure(ServiceFailurePresenter.messageFor(
+                    exception, "Custodian casework"));
         }
     }
 
