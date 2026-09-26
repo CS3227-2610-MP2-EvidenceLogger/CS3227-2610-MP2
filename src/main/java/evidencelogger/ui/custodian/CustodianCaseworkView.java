@@ -10,6 +10,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import evidencelogger.service.dto.CaseworkViews;
+import evidencelogger.ui.common.WorkspaceHeader;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
@@ -52,7 +53,10 @@ public final class CustodianCaseworkView {
 
     /** Creates all A4 casework screens and starts loading their reference data. */
     public CustodianCaseworkView(
-            CaseworkController controller, Executor databaseExecutor) {
+            CaseworkController controller,
+            Executor databaseExecutor,
+            String displayName,
+            Runnable signOut) {
         this.controller = Objects.requireNonNull(controller, "controller");
         this.databaseExecutor = Objects.requireNonNull(databaseExecutor, "databaseExecutor");
         status = new Label("Loading casework data...");
@@ -74,6 +78,7 @@ public final class CustodianCaseworkView {
                 fixedTab("Register evidence", registrationScreen()),
                 fixedTab("Evidence search", evidenceSearchScreen()));
         root = new BorderPane(tabs);
+        root.setTop(WorkspaceHeader.create(headerConfiguration(displayName, signOut)));
         root.setBottom(status);
         BorderPane.setMargin(status, new Insets(SPACING));
         refreshReferenceData();
@@ -82,6 +87,11 @@ public final class CustodianCaseworkView {
     /** Returns the root node for role-specific navigation. */
     public Parent view() {
         return root;
+    }
+
+    static WorkspaceHeader.Configuration headerConfiguration(
+            String displayName, Runnable signOut) {
+        return new WorkspaceHeader.Configuration("Custodian Workspace", displayName, signOut);
     }
 
     private Parent caseScreen() {

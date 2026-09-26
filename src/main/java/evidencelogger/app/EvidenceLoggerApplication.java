@@ -94,7 +94,7 @@ public final class EvidenceLoggerApplication extends Application {
         LoginController controller = new LoginController(composition.authentication());
         AuthenticatedRoleRouter router = new AuthenticatedRoleRouter(
                 composition.authentication(),
-                session -> showCustodianWorkspace(shell),
+                session -> showCustodianWorkspace(shell, session),
                 session -> showInvestigatorWorkspace(shell, session),
                 messageText -> showLogin(shell, messageText));
         LoginView login = new LoginView(
@@ -105,11 +105,14 @@ public final class EvidenceLoggerApplication extends Application {
         shell.showContent(login.view());
     }
 
-    private void showCustodianWorkspace(ApplicationShell shell) {
+    private void showCustodianWorkspace(ApplicationShell shell, AuthenticatedSession session) {
         CaseworkController controller = new CaseworkController(
                 composition.caseworkCommands(), composition.caseworkQueries());
         shell.showContent(new CustodianCaseworkView(
-                controller, databaseExecutor).view());
+                controller, databaseExecutor, session.displayName(), () -> {
+                    composition.authentication().signOut();
+                    showLogin(shell, "");
+                }).view());
     }
 
     private void showInvestigatorWorkspace(ApplicationShell shell, AuthenticatedSession session) {

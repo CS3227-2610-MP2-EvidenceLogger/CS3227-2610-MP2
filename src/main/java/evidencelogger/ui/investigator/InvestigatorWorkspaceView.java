@@ -13,6 +13,7 @@ import evidencelogger.domain.HandoffId;
 import evidencelogger.service.dto.CaseworkViews;
 import evidencelogger.service.dto.CheckoutViews;
 import evidencelogger.service.dto.HistoryViews;
+import evidencelogger.ui.common.WorkspaceHeader;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
@@ -25,7 +26,6 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
@@ -58,7 +58,8 @@ public final class InvestigatorWorkspaceView {
         this.databaseExecutor = Objects.requireNonNull(databaseExecutor, "databaseExecutor");
         Objects.requireNonNull(signOut, "signOut");
         BorderPane workspace = new BorderPane();
-        workspace.setTop(header(displayName, signOut));
+        workspace.setTop(WorkspaceHeader.create(new WorkspaceHeader.Configuration(
+                "Investigator workspace", displayName, signOut)));
         workspace.setCenter(dashboard());
         workspace.setBottom(status);
         BorderPane.setMargin(status, new Insets(8));
@@ -69,20 +70,6 @@ public final class InvestigatorWorkspaceView {
     /** Returns the root node for role-specific navigation. */
     public Parent view() {
         return root;
-    }
-
-    private Parent header(String displayName, Runnable signOut) {
-        Label title = new Label("EvidenceLogger   |   Investigator workspace");
-        Label user = new Label(displayName);
-        Button out = new Button("Sign out");
-        out.setOnAction(event -> signOut.run());
-        HBox bar = new HBox(18, title, user, out);
-        bar.setPadding(new Insets(16));
-        title.setStyle("-fx-text-fill: white;");
-        user.setStyle("-fx-text-fill: white;");
-        HBox.setHgrow(title, Priority.ALWAYS);
-        bar.setStyle("-fx-background-color: #102b4c;");
-        return bar;
     }
 
     private Parent dashboard() {
