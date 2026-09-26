@@ -25,11 +25,20 @@ import javax.crypto.spec.PBEKeySpec;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import evidencelogger.domain.CaseId;
+import evidencelogger.domain.CheckoutId;
+import evidencelogger.domain.CheckoutRequestId;
+import evidencelogger.domain.EvidenceCustodyState;
+import evidencelogger.domain.EvidenceId;
+import evidencelogger.domain.ReturnInspectionOutcome;
 import evidencelogger.domain.Role;
+import evidencelogger.domain.StorageLocationId;
 import evidencelogger.infrastructure.db.ConnectionFactory;
 import evidencelogger.infrastructure.db.SqliteConnectionFactory;
 import evidencelogger.service.ServiceException;
 import evidencelogger.service.auth.AuthenticatedSession;
+import evidencelogger.service.dto.CaseworkCommands;
+import evidencelogger.service.dto.CheckoutCommands;
 
 class ApplicationCompositionIntegrationTest {
     private static final Clock FIXED_CLOCK =
@@ -54,7 +63,14 @@ class ApplicationCompositionIntegrationTest {
         assertNotNull(composition.auditEvents());
         assertNotNull(composition.caseworkCommands());
         assertNotNull(composition.caseworkQueries());
+        assertNotNull(composition.checkoutCommands());
         assertEquals(List.of(), composition.checkoutQueries().listRequests());
+        assertNotNull(composition.historyQueries());
+        assertThrows(ServiceException.NotFound.class, () -> composition.checkoutCommands()
+                .withdrawRequest(new CheckoutCommands.WithdrawRequest(
+                        new CheckoutRequestId(java.util.UUID.randomUUID()))));
+        assertThrows(ServiceException.Forbidden.class, () -> composition.historyQueries()
+                .listEventsForCase(new CaseId(java.util.UUID.randomUUID())));
         try (Connection connection = composition.connectionFactory().open();
                 Statement statement = connection.createStatement();
                 ResultSet results = statement.executeQuery("SELECT count(*) FROM schema_migration")) {
@@ -101,6 +117,70 @@ class ApplicationCompositionIntegrationTest {
                         account.username(), account.password().toCharArray());
                 assertEquals(account.role(), session.role());
             }
+        }
+    }
+
+    @Test
+    void composedServicesCompleteTheCoreCustodyWorkflow() throws IOException {
+        try (ApplicationComposition composition = ApplicationComposition.start(
+                temporaryDirectory.resolve("workflow.db"), FIXED_CLOCK)) {
+            DemoAccount custodian = demoAccount(Role.EVIDENCE_CUSTODIAN);
+            DemoAccount investigator = demoAccount(Role.INVESTIGATOR);
+
+            composition.authentication().signIn(
+                    custodian.username(), custodian.password().toCharArray());
+            evidencelogger.service.dto.CaseworkViews.Investigator assignee =
+                    composition.caseworkQueries().listInvestigators().stream()
+                            .filter(candidate -> candidate.username().equals(investigator.username()))
+                            .findFirst()
+                            .orElseThrow();
+            CaseId caseId = composition.caseworkCommands().createCase(
+                    new CaseworkCommands.CreateCase("Composed workflow", assignee.investigatorId()));
+            StorageLocationId locationId =
+                    composition.caseworkCommands().addStorageLocation(
+                            new CaseworkCommands.AddStorageLocation("Workflow locker"));
+            EvidenceId evidenceId =
+                    composition.caseworkCommands().registerEvidence(
+                            new CaseworkCommands.RegisterEvidence(
+                                    caseId, "Sealed workflow item", locationId));
+
+            composition.authentication().signOut();
+            composition.authentication().signIn(
+                    investigator.username(), investigator.password().toCharArray());
+            evidencelogger.domain.CheckoutRequestId requestId =
+                    composition.checkoutCommands().submitRequest(new CheckoutCommands.SubmitRequest(
+                            evidenceId, "Examine seal", FIXED_CLOCK.instant().plusSeconds(3600)));
+
+            composition.authentication().signOut();
+            composition.authentication().signIn(
+                    custodian.username(), custodian.password().toCharArray());
+            composition.checkoutCommands().approveRequest(
+                    new CheckoutCommands.ApproveRequest(requestId));
+            evidencelogger.domain.HandoffId handoffId = composition.checkoutCommands().recordHandoff(
+                    new CheckoutCommands.RecordHandoff(requestId));
+
+            composition.authentication().signOut();
+            composition.authentication().signIn(
+                    investigator.username(), investigator.password().toCharArray());
+            CheckoutId checkoutId = composition.checkoutCommands().acknowledgeCollection(
+                    new CheckoutCommands.AcknowledgeCollection(handoffId));
+            composition.checkoutCommands().addExaminationNote(
+                    new CheckoutCommands.AddExaminationNote(checkoutId, "Seal intact"));
+            composition.checkoutCommands().initiateReturn(
+                    new CheckoutCommands.InitiateReturn(checkoutId));
+
+            composition.authentication().signOut();
+            composition.authentication().signIn(
+                    custodian.username(), custodian.password().toCharArray());
+            composition.checkoutCommands().inspectReturn(new CheckoutCommands.InspectReturn(
+                    checkoutId, ReturnInspectionOutcome.STORED));
+
+            assertEquals(EvidenceCustodyState.IN_STORAGE,
+                    composition.caseworkQueries().searchEvidence("workflow item").stream()
+                            .filter(evidence -> evidence.evidenceId().equals(evidenceId))
+                            .findFirst()
+                            .orElseThrow()
+                            .custodyState());
         }
     }
 
@@ -154,6 +234,13 @@ class ApplicationCompositionIntegrationTest {
                     role));
         }
         return List.copyOf(accounts);
+    }
+
+    private static DemoAccount demoAccount(Role role) throws IOException {
+        return readDocumentedDemoAccounts().stream()
+                .filter(account -> account.role() == role)
+                .findFirst()
+                .orElseThrow();
     }
 
     private static String removeCodeFormatting(String cell) {
