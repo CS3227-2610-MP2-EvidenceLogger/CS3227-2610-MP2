@@ -53,7 +53,7 @@ class SqliteInfrastructureTest {
 
         try (Connection connection = connectionFactory.open();
                 Statement statement = connection.createStatement()) {
-            assertEquals(2, count(statement, "schema_migration"));
+            assertEquals(3, count(statement, "schema_migration"));
             assertEquals(3, count(statement, "user_account"));
             assertEquals(1, countWhere(statement, "user_account", "role = 'EVIDENCE_CUSTODIAN'"));
             assertEquals(2, countWhere(statement, "user_account", "role = 'INVESTIGATOR'"));

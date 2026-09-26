@@ -18,7 +18,7 @@ real accounts or enter real evidence information into the application.
 
 | Role | Username | Password | Current access |
 | --- | --- | --- | --- |
-| Evidence Custodian | `custodian` | `CustodianDemo!2026` | Casework, checkout workflow, returns, and history |
+| Evidence Custodian | `custodian` | `CustodianDemo!2026` | Casework, evidence, task queue, returns, and history |
 | Investigator | `investigator.alex` | `InvestigatorDemo!2026` | Assigned casework, checkout, notes, returns, and history |
 | Investigator | `investigator.blair` | `InvestigatorDemo!2026` | Assigned casework, checkout, notes, returns, and history |
 

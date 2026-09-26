@@ -24,6 +24,8 @@ import org.junit.jupiter.api.io.TempDir;
 class MigrationUpgradeIntegrationTest {
     private static final String V1_RESOURCE =
             "/db/migration/V001__initial_schema.sql";
+    private static final String V2_RESOURCE =
+            "/db/migration/V002__align_checkout_persistence.sql";
     private static final String EXISTING_EVIDENCE_ID =
             "00000000-0000-0000-0000-000000000600";
 
@@ -43,7 +45,7 @@ class MigrationUpgradeIntegrationTest {
 
         try (Connection connection = connections.open();
                 Statement statement = connection.createStatement()) {
-            assertEquals(2, scalar(statement, "SELECT count(*) FROM schema_migration"));
+            assertEquals(3, scalar(statement, "SELECT count(*) FROM schema_migration"));
             assertEquals(1, scalar(statement, "SELECT count(*) FROM evidence_item"
                     + " WHERE id = '" + EXISTING_EVIDENCE_ID + "'"
                     + " AND custody_state = 'CHECKED_OUT'"));
@@ -76,6 +78,50 @@ class MigrationUpgradeIntegrationTest {
                         'HELD_FOR_REVIEW', '2026-09-24T00:00:00Z'
                     )
                     """));
+        }
+    }
+
+    @Test
+    void versionTwoDatabaseUpgradesToSupportRetainedVoidedEvidence() throws SQLException {
+        ConnectionFactory connections = new SqliteConnectionFactory(
+                temporaryDirectory.resolve("version-two-upgrade.db"));
+        try (Connection connection = connections.open()) {
+            installVersionOne(connection);
+            applyVersionTwo(connection);
+        }
+
+        new MigrationRunner(connections, Clock.systemUTC()).migrate();
+
+        try (Connection connection = connections.open();
+                Statement statement = connection.createStatement()) {
+            assertEquals(3, scalar(statement, "SELECT count(*) FROM schema_migration"));
+            statement.executeUpdate("""
+                    INSERT INTO case_record(id, title, created_at) VALUES (
+                        '00000000-0000-0000-0000-000000000630',
+                        'Void upgrade case', '2026-09-24T00:00:00Z'
+                    )
+                    """);
+            statement.executeUpdate("""
+                    INSERT INTO storage_location(id, name, created_at) VALUES (
+                        '00000000-0000-0000-0000-000000000631',
+                        'Void upgrade locker', '2026-09-24T00:00:00Z'
+                    )
+                    """);
+            statement.executeUpdate("""
+                    INSERT INTO evidence_item(
+                        id, case_id, public_reference, description,
+                        storage_location_id, custody_state, registered_at
+                    ) VALUES (
+                        '00000000-0000-0000-0000-000000000632',
+                        '00000000-0000-0000-0000-000000000630',
+                        'EV-VOIDED', 'Retained mistake',
+                        '00000000-0000-0000-0000-000000000631',
+                        'VOIDED', '2026-09-24T00:00:00Z'
+                    )
+                    """);
+            assertEquals(1, scalar(statement, "SELECT count(*) FROM evidence_item"
+                    + " WHERE custody_state = 'VOIDED'"));
+            assertEquals(0, scalar(statement, "SELECT count(*) FROM pragma_foreign_key_check"));
         }
     }
 
@@ -172,6 +218,41 @@ class MigrationUpgradeIntegrationTest {
             throw failure;
         } finally {
             connection.setAutoCommit(originalAutoCommit);
+        }
+    }
+
+    private static void applyVersionTwo(Connection connection) throws SQLException {
+        String script = readResource(V2_RESOURCE);
+        boolean originalAutoCommit = connection.getAutoCommit();
+        try (Statement pragma = connection.createStatement()) {
+            pragma.execute("PRAGMA foreign_keys = OFF");
+        }
+        connection.setAutoCommit(false);
+        try {
+            try (Statement statement = connection.createStatement()) {
+                for (String sql : script.split(";")) {
+                    if (!sql.isBlank()) {
+                        statement.executeUpdate(sql.trim());
+                    }
+                }
+            }
+            try (PreparedStatement statement = connection.prepareStatement("""
+                    INSERT INTO schema_migration(version, name, checksum, applied_at)
+                    VALUES (2, 'V002__align_checkout_persistence.sql', ?,
+                            '2026-09-24T00:00:00Z')
+                    """)) {
+                statement.setString(1, checksum(script));
+                statement.executeUpdate();
+            }
+            connection.commit();
+        } catch (SQLException failure) {
+            connection.rollback();
+            throw failure;
+        } finally {
+            connection.setAutoCommit(originalAutoCommit);
+            try (Statement pragma = connection.createStatement()) {
+                pragma.execute("PRAGMA foreign_keys = ON");
+            }
         }
     }
 

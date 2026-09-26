@@ -170,6 +170,49 @@ public final class JdbcCaseworkRepository implements CaseworkRepository {
     }
 
     @Override
+    public Optional<EvidenceRecord> findEvidence(
+            Connection connection, EvidenceId evidenceId) {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT e.id, e.case_id, c.title AS case_title, e.public_reference,
+                       e.description, e.storage_location_id, l.name AS location_name,
+                       e.custody_state, e.registered_at
+                FROM evidence_item e
+                JOIN case_record c ON c.id = e.case_id
+                JOIN storage_location l ON l.id = e.storage_location_id
+                WHERE e.id = ?
+                """)) {
+            statement.setString(1, evidenceId.toString());
+            try (ResultSet results = statement.executeQuery()) {
+                return results.next()
+                        ? Optional.of(mapEvidence(results))
+                        : Optional.empty();
+            }
+        } catch (SQLException exception) {
+            throw storageFailure("find evidence", exception);
+        }
+    }
+
+    @Override
+    public boolean voidEvidenceIfEligible(
+            Connection connection, EvidenceId evidenceId) {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                UPDATE evidence_item
+                SET custody_state = 'VOIDED'
+                WHERE id = ?
+                  AND custody_state = 'IN_STORAGE'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM checkout_request request
+                      WHERE request.evidence_id = evidence_item.id
+                  )
+                """)) {
+            statement.setString(1, evidenceId.toString());
+            return statement.executeUpdate() == 1;
+        } catch (SQLException exception) {
+            throw storageFailure("void evidence", exception);
+        }
+    }
+
+    @Override
     public List<CaseRecord> searchCases(
             String searchText, Optional<UserId> assignedInvestigatorId) {
         String assignmentJoin = assignedInvestigatorId.isPresent()
@@ -200,7 +243,9 @@ public final class JdbcCaseworkRepository implements CaseworkRepository {
 
     @Override
     public List<EvidenceRecord> searchEvidence(
-            String searchText, Optional<UserId> assignedInvestigatorId) {
+            String searchText,
+            Optional<UserId> assignedInvestigatorId,
+            boolean includeVoided) {
         String assignmentJoin = assignedInvestigatorId.isPresent()
                 ? " JOIN case_assignment a ON a.case_id = c.id AND a.investigator_id = ?"
                 : "";
@@ -212,20 +257,22 @@ public final class JdbcCaseworkRepository implements CaseworkRepository {
                 JOIN case_record c ON c.id = e.case_id
                 JOIN storage_location l ON l.id = e.storage_location_id
                 """ + assignmentJoin + """
-                 WHERE instr(lower(e.public_reference), lower(?)) > 0
+                 WHERE (? OR e.custody_state <> 'VOIDED')
+                   AND (instr(lower(e.public_reference), lower(?)) > 0
                     OR instr(lower(e.description), lower(?)) > 0
                     OR instr(lower(c.title), lower(?)) > 0
-                    OR instr(lower(l.name), lower(?)) > 0
+                    OR instr(lower(l.name), lower(?)) > 0)
                  ORDER BY lower(e.public_reference), e.id
                 """;
         return withConnection(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 int searchIndex = setOptionalInvestigator(
                         statement, assignedInvestigatorId, 1);
-                statement.setString(searchIndex, searchText);
+                statement.setBoolean(searchIndex, includeVoided);
                 statement.setString(searchIndex + 1, searchText);
                 statement.setString(searchIndex + 2, searchText);
                 statement.setString(searchIndex + 3, searchText);
+                statement.setString(searchIndex + 4, searchText);
                 try (ResultSet results = statement.executeQuery()) {
                     List<EvidenceRecord> evidence = new ArrayList<>();
                     while (results.next()) {

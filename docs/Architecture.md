@@ -95,11 +95,11 @@ Legend: green solid nodes are represented by concrete source files today; amber 
 | `evidencelogger.app.session` | Package marker only | Observe authentication state and drive role navigation. It must not decide case access or accept a UI-supplied actor identity. |
 | `evidencelogger.ui.common` | Application shell, workspace header, history formatting, and service-failure presentation | Shared code-built controls, presentation helpers, navigation shell, and user-readable error presentation. It must not authorize or mutate domain state. |
 | `evidencelogger.ui.login` | `LoginView`, `LoginController` | Sign-in view/controller using the authentication service; no direct database access. |
-| `evidencelogger.ui.custodian` | Casework and checkout workflow views/controllers | Custodian cases, assignments, locations, registration, search, request decisions, handoffs, return inspection, and history. |
+| `evidencelogger.ui.custodian` | Case-first casework view and task-oriented workflow view/controllers | Custodian cases, assignments, locations, evidence registration/voiding/search, request decisions, handoffs, return inspection, and history. |
 | `evidencelogger.ui.investigator` | Investigator workspace view/controller | Assigned-case search, requests, acknowledgment, notes, returns, and history. UI filtering is not the security boundary. |
 | `evidencelogger.service` | `ServiceException` | Persistence-neutral failures translated to readable UI messages: unauthenticated, forbidden, validation, invalid transition, conflict, not found, and storage failure. |
 | `evidencelogger.service.auth` | Authentication, session, and authorization services | Password verification coordination, service-owned session issuance, role checks, and current-assignment checks. |
-| `evidencelogger.service.casework` | Authorized command/query service | Case creation, assignments, storage locations, evidence registration, and authorized case/evidence queries. |
+| `evidencelogger.service.casework` | Authorized command/query service | Case creation, assignments, storage locations, evidence registration and guarded voiding, and authorized case/evidence queries. |
 | `evidencelogger.service.checkout` | Authorized command and query implementations | Request, decision, handoff, acknowledgment, note, return, inspection, and correction workflows and reads. |
 | `evidencelogger.service.history` | Audit writing and authorized query implementation | Authorized ordered history and append-only corrections; audit writes use the caller-owned transaction connection. |
 | `evidencelogger.service.dto` | Checkout command records and read models | Immutable, technology-neutral inputs/outputs between UI and services. No JavaFX or JDBC types. |
@@ -118,12 +118,14 @@ Legend: green solid nodes are represented by concrete source files today; amber 
 - Controllers pass typed command data. The service obtains actor, role, current state, and time from its session/database/infrastructure dependencies.
 - Each successful custody change and its audit event(s) commit atomically. History and corrections are append-only.
 - Approval does not check evidence out; handoff plus Investigator acknowledgment does. Custodian inspection is required before a return becomes available in storage.
+- Voiding an erroneous registration is a Custodian-only conditional state change. The item must be in storage with no checkout request history; its `VOIDED` state and `EVIDENCE_VOIDED` audit event commit atomically, and normal evidence searches exclude it.
 - Attachments, backup/restore, case closure, release from hold, account administration, and other deferred features have no package or database component in the MVP.
 
 ## Current implementation status
 
 Implemented today: JavaFX startup and login, separate Custodian and Investigator workspaces,
-role-based navigation and logout, Custodian casework and checkout workflow screens, Investigator
+role-based navigation and logout, a case-first Custodian workspace with a categorized work queue,
+guarded evidence-registration voiding, Investigator
 request/collection/note/return screens, authorized ordered history and append-only documentary
 corrections, authentication and session-backed authorization, casework and checkout services, JDBC
 repositories, SQLite migrations and transactions, PBKDF2 password verification, rotating

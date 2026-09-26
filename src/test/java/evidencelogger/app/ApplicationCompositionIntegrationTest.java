@@ -77,7 +77,7 @@ class ApplicationCompositionIntegrationTest {
         try (Connection connection = composition.connectionFactory().open();
                 Statement statement = connection.createStatement();
                 ResultSet results = statement.executeQuery("SELECT count(*) FROM schema_migration")) {
-            assertEquals(2, results.getInt(1));
+            assertEquals(3, results.getInt(1));
         }
 
         composition.close();
