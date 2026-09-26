@@ -26,6 +26,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
@@ -39,6 +40,7 @@ import javafx.scene.text.FontWeight;
 
 /** Mockup-inspired Investigator dashboard for authorized casework and requests. */
 public final class InvestigatorWorkspaceView {
+    private static final double MINIMUM_BODY_WIDTH = 1400;
     private static final double SECTION_HEADING_FONT_SIZE = 16;
     private static final DateTimeFormatter CASE_CREATED_AT_FORMAT = DateTimeFormatter
             .ofPattern("dd/MM/uuuu HH:mm")
@@ -73,7 +75,7 @@ public final class InvestigatorWorkspaceView {
         BorderPane workspace = new BorderPane();
         workspace.setTop(WorkspaceHeader.create(new WorkspaceHeader.Configuration(
                 "Investigator Workspace", displayName, signOut)));
-        workspace.setCenter(dashboard());
+        workspace.setCenter(scrollableDashboard());
         workspace.setBottom(status);
         BorderPane.setMargin(status, new Insets(8));
         root = workspace;
@@ -114,7 +116,7 @@ public final class InvestigatorWorkspaceView {
         HBox.setHgrow(requestFields, Priority.ALWAYS);
         submitRequest.setMaxHeight(Double.MAX_VALUE);
         HBox requestRow = new HBox(8, requestFields, submitRequest);
-        withdrawRequest = new Button("Withdraw pending request");
+        withdrawRequest = new Button("Withdraw PENDING Request");
         submitRequest.setOnAction(event -> {
             requestError.setText("");
             run(submitRequest, () -> controller.submitRequest(
@@ -138,7 +140,7 @@ public final class InvestigatorWorkspaceView {
         noteEditor = new TextArea();
         noteEditor.setPromptText("Examination note");
         addNote = new Button("Add examination note");
-        acknowledgeCollection = new Button("Acknowledge collection");
+        acknowledgeCollection = new Button("Acknowledge Collection");
         correctionText = new TextField();
         correctionText.setPromptText("Correction text");
         correctionReason = new TextField();
@@ -187,22 +189,35 @@ public final class InvestigatorWorkspaceView {
                     }
                 });
 
+        HBox requestActions = new HBox(8, withdrawRequest, acknowledgeCollection);
+
         VBox right = panel("Evidence Details & Request",
                 new Label("Select assigned evidence to request."), requestError, requestRow,
-                sectionHeading("My Requests"), requests, withdrawRequest,
-                acknowledgeCollection, sectionHeading("Active Checkout"), checkouts, notes,
+                sectionHeading("My Requests"), requests, requestActions,
+                sectionHeading("Active Checkout"), checkouts, notes,
                 noteEditor, addNote, correctionText, correctionReason, correctNote,
                 initiateReturn, sectionHeading("Custody History"), history);
         GridPane grid = new GridPane();
         grid.setHgap(12);
         grid.setVgap(12);
         grid.setPadding(new Insets(16));
+        grid.setMinWidth(MINIMUM_BODY_WIDTH);
         grid.add(left, 0, 0);
         grid.add(right, 1, 0);
         GridPane.setHgrow(left, Priority.ALWAYS);
         GridPane.setHgrow(right, Priority.ALWAYS);
         updateActionAvailability();
         return grid;
+    }
+
+    /** Keeps the workspace header fixed while the body can scroll to its full width. */
+    private Parent scrollableDashboard() {
+        ScrollPane scrollPane = new ScrollPane(dashboard());
+        scrollPane.setFitToWidth(false);
+        scrollPane.setFitToHeight(true);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        return scrollPane;
     }
 
     private static VBox panel(String title, Node... nodes) {
