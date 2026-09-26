@@ -166,7 +166,14 @@ class DefaultHistoryQueryServiceTest {
                 Optional<String> reason) {
             return new EventDetails(
                     eventId, type, CUSTODIAN_ID, "Morgan Custodian",
-                    Role.EVIDENCE_CUSTODIAN, EVENT_TIME, correctionText, reason);
+                    Role.EVIDENCE_CUSTODIAN, EVENT_TIME, correctionText, reason,
+                    Optional.empty());
+        }
+
+        @Override
+        public Optional<EventSubjects> findEventSubjects(
+                Connection connection, AuditEventId eventId) {
+            return Optional.empty();
         }
     }
 }

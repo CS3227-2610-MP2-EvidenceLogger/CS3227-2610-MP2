@@ -13,6 +13,10 @@ import java.util.Optional;
 import evidencelogger.domain.AuditEventId;
 import evidencelogger.domain.AuditEventType;
 import evidencelogger.domain.CaseId;
+import evidencelogger.domain.CheckoutId;
+import evidencelogger.domain.CheckoutRequestId;
+import evidencelogger.domain.EvidenceId;
+import evidencelogger.domain.HandoffId;
 import evidencelogger.domain.Role;
 import evidencelogger.domain.UserId;
 import evidencelogger.repository.RepositoryException;
@@ -28,7 +32,8 @@ public final class JdbcAuditEventReadRepository implements AuditEventReadReposit
         Objects.requireNonNull(investigatorScope, "investigatorScope");
         String sql = "SELECT event.id, event.event_type, event.actor_id, "
                 + "actor.display_name AS actor_display_name, event.actor_role, event.event_time, "
-                + "event.correction_text, event.reason FROM audit_event event "
+                + "event.correction_text, event.reason, event.corrected_event_id "
+                + "FROM audit_event event "
                 + "JOIN user_account actor ON actor.id = event.actor_id"
                 + scopeJoin(investigatorScope)
                 + " WHERE event.case_id = ? ORDER BY event.event_time, event.id";
@@ -46,13 +51,48 @@ public final class JdbcAuditEventReadRepository implements AuditEventReadReposit
                             Role.valueOf(results.getString("actor_role")),
                             Instant.parse(results.getString("event_time")),
                             Optional.ofNullable(results.getString("correction_text")),
-                            Optional.ofNullable(results.getString("reason"))));
+                            Optional.ofNullable(results.getString("reason")),
+                            optionalId(results, "corrected_event_id", AuditEventId::parse)));
                 }
                 return List.copyOf(events);
             }
         } catch (SQLException exception) {
             throw new RepositoryException.StorageFailure("Unable to read audit history", exception);
         }
+    }
+
+    @Override
+    public Optional<EventSubjects> findEventSubjects(
+            Connection connection, AuditEventId eventId) {
+        Objects.requireNonNull(connection, "connection");
+        Objects.requireNonNull(eventId, "eventId");
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT case_id, evidence_id, request_id, handoff_id, checkout_id
+                FROM audit_event WHERE id = ?
+                """)) {
+            statement.setString(1, eventId.toString());
+            try (ResultSet results = statement.executeQuery()) {
+                if (!results.next()) {
+                    return Optional.empty();
+                }
+                return Optional.of(new EventSubjects(
+                        optionalId(results, "case_id", CaseId::parse),
+                        optionalId(results, "evidence_id", EvidenceId::parse),
+                        optionalId(results, "request_id", CheckoutRequestId::parse),
+                        optionalId(results, "handoff_id", HandoffId::parse),
+                        optionalId(results, "checkout_id", CheckoutId::parse)));
+            }
+        } catch (SQLException exception) {
+            throw new RepositoryException.StorageFailure(
+                    "Unable to read the audit event", exception);
+        }
+    }
+
+    private static <T> Optional<T> optionalId(
+            ResultSet results,
+            String column,
+            java.util.function.Function<String, T> parser) throws SQLException {
+        return Optional.ofNullable(results.getString(column)).map(parser);
     }
 
     private static String scopeJoin(Optional<UserId> investigatorScope) {

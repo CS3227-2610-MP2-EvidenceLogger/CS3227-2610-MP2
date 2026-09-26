@@ -57,9 +57,12 @@ public final class CustodianWorkflowView {
     private final Button reverseHandoff = new Button("Reverse handoff");
     private final Button inspectReturn = new Button("Inspect and store");
     private final Button inspectUnplanned = new Button("Record unplanned return");
+    private final Button correctHistory = new Button("Append correction");
     private final TextField cancellationReason = new TextField();
     private final TextField reversalReason = new TextField();
     private final TextField unplannedReason = new TextField();
+    private final TextField historyCorrection = new TextField();
+    private final TextField historyCorrectionReason = new TextField();
 
     /** Creates the four A5 screens against the shared checkout interfaces. */
     public CustodianWorkflowView(
@@ -167,10 +170,23 @@ public final class CustodianWorkflowView {
         Button load = new Button("Load history");
         load.setOnAction(event -> loadHistory(load));
         historyCase.setOnAction(event -> loadHistory(load));
+        correctHistory.setOnAction(event -> run(correctHistory, () ->
+                controller.correctHistory(
+                        historyEvents.getSelectionModel().getSelectedItem(),
+                        historyCorrection.getText(),
+                        historyCorrectionReason.getText()),
+                ignored -> {
+                    historyCorrection.clear();
+                    historyCorrectionReason.clear();
+                    showStatus.accept("History correction appended");
+                    loadHistory(null);
+                }));
         VBox box = screen(
-                "Read append-only case history in its authorized service order.",
+                "Read ordered append-only case history and append documentary corrections.",
                 row(historyCase, load),
-                historyEvents);
+                historyEvents,
+                historyCorrection,
+                row(historyCorrectionReason, correctHistory));
         VBox.setVgrow(historyEvents, Priority.ALWAYS);
         return box;
     }
@@ -179,12 +195,17 @@ public final class CustodianWorkflowView {
         cancellationReason.setPromptText("Cancellation reason");
         reversalReason.setPromptText("Reversal reason");
         unplannedReason.setPromptText("Unplanned return reason");
+        historyCorrection.setPromptText("Correction text");
+        historyCorrectionReason.setPromptText("Correction reason");
         decisionRequests.setCellFactory(list -> textCell(CustodianWorkflowView::requestText));
         handoffRequests.setCellFactory(list -> textCell(CustodianWorkflowView::requestText));
         returnCheckouts.setCellFactory(list -> textCell(CustodianWorkflowView::checkoutText));
         historyEvents.setCellFactory(list -> textCell(CustodianWorkflowView::historyText));
         historyCase.setConverter(converter(CaseworkViews.Case::title));
         historyCase.setMaxWidth(Double.MAX_VALUE);
+        historyEvents.getSelectionModel().selectedItemProperty().addListener((
+                observable, oldValue, newValue) ->
+                    correctHistory.setDisable(newValue == null));
         decisionRequests.getSelectionModel().selectedItemProperty().addListener((
                 observable, oldValue, newValue) -> updateDecisionActions());
         handoffRequests.getSelectionModel().selectedItemProperty().addListener((
@@ -194,6 +215,7 @@ public final class CustodianWorkflowView {
         updateDecisionActions();
         updateHandoffActions();
         updateReturnActions();
+        correctHistory.setDisable(true);
     }
 
     private void refreshWorkflow() {
@@ -373,10 +395,14 @@ public final class CustodianWorkflowView {
 
     private static String historyText(HistoryViews.Event event) {
         String detail = event.correctionText().orElse(event.reason().orElse(""));
-        return String.format("%s | %s | %s (%s)%s",
+        String target = event.correctedEventId()
+                .map(id -> " | corrects " + id)
+                .orElse("");
+        return String.format("%s | %s | %s (%s)%s%s",
                 TIME_FORMAT.format(event.eventTime()), event.type(),
                 event.actorDisplayName(), event.actorRole(),
-                detail.isBlank() ? "" : " | " + detail);
+                detail.isBlank() ? "" : " | " + detail,
+                target);
     }
 
     private static Tab fixedTab(String title, Parent content) {

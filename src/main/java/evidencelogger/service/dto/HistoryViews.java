@@ -21,7 +21,8 @@ public final class HistoryViews {
             Role actorRole,
             Instant eventTime,
             Optional<String> correctionText,
-            Optional<String> reason) {
+            Optional<String> reason,
+            Optional<AuditEventId> correctedEventId) {
         /** Validates immutable display fields and explicit optional values. */
         public Event {
             Objects.requireNonNull(eventId, "eventId");
@@ -31,6 +32,7 @@ public final class HistoryViews {
             Objects.requireNonNull(eventTime, "eventTime");
             Objects.requireNonNull(correctionText, "correctionText");
             Objects.requireNonNull(reason, "reason");
+            Objects.requireNonNull(correctedEventId, "correctedEventId");
         }
     }
 }

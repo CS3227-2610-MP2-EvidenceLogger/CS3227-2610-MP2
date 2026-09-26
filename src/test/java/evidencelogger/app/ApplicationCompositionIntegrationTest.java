@@ -25,6 +25,7 @@ import javax.crypto.spec.PBEKeySpec;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import evidencelogger.domain.AuditEventType;
 import evidencelogger.domain.CaseId;
 import evidencelogger.domain.CheckoutId;
 import evidencelogger.domain.CheckoutRequestId;
@@ -39,6 +40,7 @@ import evidencelogger.service.ServiceException;
 import evidencelogger.service.auth.AuthenticatedSession;
 import evidencelogger.service.dto.CaseworkCommands;
 import evidencelogger.service.dto.CheckoutCommands;
+import evidencelogger.service.dto.HistoryCommands;
 
 class ApplicationCompositionIntegrationTest {
     private static final Clock FIXED_CLOCK =
@@ -65,6 +67,7 @@ class ApplicationCompositionIntegrationTest {
         assertNotNull(composition.caseworkQueries());
         assertNotNull(composition.checkoutCommands());
         assertEquals(List.of(), composition.checkoutQueries().listRequests());
+        assertNotNull(composition.historyCommands());
         assertNotNull(composition.historyQueries());
         assertThrows(ServiceException.NotFound.class, () -> composition.checkoutCommands()
                 .withdrawRequest(new CheckoutCommands.WithdrawRequest(
@@ -174,6 +177,27 @@ class ApplicationCompositionIntegrationTest {
                     custodian.username(), custodian.password().toCharArray());
             composition.checkoutCommands().inspectReturn(new CheckoutCommands.InspectReturn(
                     checkoutId, ReturnInspectionOutcome.STORED));
+
+            evidencelogger.service.dto.HistoryViews.Event registration =
+                    composition.historyQueries().listEventsForCase(caseId).stream()
+                            .filter(event -> event.type() == AuditEventType.EVIDENCE_REGISTERED)
+                            .findFirst()
+                            .orElseThrow();
+            composition.historyCommands().correctEvent(new HistoryCommands.CorrectEvent(
+                    registration.eventId(),
+                    "Corrected documentary description",
+                    "Registration description was inaccurate"));
+
+            evidencelogger.service.dto.HistoryViews.Event correction =
+                    composition.historyQueries().listEventsForCase(caseId).stream()
+                            .filter(event -> event.type() == AuditEventType.HISTORY_CORRECTED)
+                            .findFirst()
+                            .orElseThrow();
+            assertEquals(java.util.Optional.of(registration.eventId()),
+                    correction.correctedEventId());
+            assertEquals(java.util.Optional.of("Corrected documentary description"),
+                    correction.correctionText());
+            assertEquals(AuditEventType.EVIDENCE_REGISTERED, registration.type());
 
             assertEquals(EvidenceCustodyState.IN_STORAGE,
                     composition.caseworkQueries().searchEvidence("workflow item").stream()

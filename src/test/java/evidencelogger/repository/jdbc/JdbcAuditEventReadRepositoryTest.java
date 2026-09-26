@@ -1,6 +1,7 @@
 package evidencelogger.repository.jdbc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -67,8 +68,14 @@ class JdbcAuditEventReadRepositoryTest {
         assertEquals("Insufficient purpose", events.getFirst().reason().orElseThrow());
         assertEquals(AuditEventType.EXAMINATION_NOTE_CORRECTED, events.getLast().type());
         assertEquals("Corrected identifier", events.getLast().correctionText().orElseThrow());
+        assertEquals(Optional.of(FIRST_EVENT_ID), events.getLast().correctedEventId());
         assertEquals(List.of(), transactions.inTransaction(connection -> reads.listEventsForCase(
                 connection, UNASSIGNED_CASE_ID, Optional.of(ALEX_ID))));
+
+        Optional<AuditEventReadRepository.EventSubjects> subjects = transactions.inTransaction(
+                connection -> reads.findEventSubjects(connection, FIRST_EVENT_ID));
+        assertTrue(subjects.isPresent());
+        assertEquals(Optional.of(ASSIGNED_CASE_ID), subjects.orElseThrow().caseId());
 
         transactions.inTransaction(connection -> {
             update(connection, "DELETE FROM case_assignment WHERE case_id = ? AND investigator_id = ?",
@@ -77,6 +84,16 @@ class JdbcAuditEventReadRepositoryTest {
         });
         assertEquals(List.of(), transactions.inTransaction(connection -> reads.listEventsForCase(
                 connection, ASSIGNED_CASE_ID, Optional.of(ALEX_ID))));
+    }
+
+    @Test
+    void returnsEmptySubjectsForMissingCorrectionTarget() {
+        Optional<AuditEventReadRepository.EventSubjects> subjects = transactions.inTransaction(
+                connection -> reads.findEventSubjects(
+                        connection,
+                        AuditEventId.parse("00000000-0000-0000-0000-000000000799")));
+
+        assertEquals(Optional.empty(), subjects);
     }
 
     private void seedFixture() {
@@ -92,6 +109,8 @@ class JdbcAuditEventReadRepositoryTest {
                     ASSIGNED_CASE_ID, null, "Insufficient purpose");
             insertEvent(connection, SECOND_EVENT_ID, AuditEventType.EXAMINATION_NOTE_CORRECTED,
                     ASSIGNED_CASE_ID, "Corrected identifier", null);
+            update(connection, "UPDATE audit_event SET corrected_event_id = ? WHERE id = ?",
+                    FIRST_EVENT_ID.toString(), SECOND_EVENT_ID.toString());
             insertEvent(connection, AuditEventId.parse("00000000-0000-0000-0000-000000000721"),
                     AuditEventType.REQUEST_REJECTED, UNASSIGNED_CASE_ID, null, "Private case");
             return null;

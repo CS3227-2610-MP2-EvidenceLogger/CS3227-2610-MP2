@@ -115,6 +115,7 @@ public final class EvidenceLoggerApplication extends Application {
         CustodianWorkflowController workflowController = new CustodianWorkflowController(
                 composition.checkoutCommands(),
                 composition.checkoutQueries(),
+                composition.historyCommands(),
                 composition.historyQueries());
         shell.showContent(new CustodianCaseworkView(
                 controller, workflowController,
