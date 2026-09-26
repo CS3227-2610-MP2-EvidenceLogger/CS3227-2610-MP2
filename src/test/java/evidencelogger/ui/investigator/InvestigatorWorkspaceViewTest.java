@@ -46,6 +46,12 @@ class InvestigatorWorkspaceViewTest {
     }
 
     @Test
+    void formatsCheckoutTimestampsForTheActiveCheckoutList() {
+        assertEquals("26/09/2026 17:05", InvestigatorWorkspaceView.formatCheckoutTimestamp(
+                Instant.parse("2026-09-26T17:05:45Z")));
+    }
+
+    @Test
     void usesTheRequestedColourForEachEvidenceCustodyState() {
         assertEquals(Color.GREEN, InvestigatorWorkspaceView.custodyStateColor(
                 EvidenceCustodyState.IN_STORAGE));

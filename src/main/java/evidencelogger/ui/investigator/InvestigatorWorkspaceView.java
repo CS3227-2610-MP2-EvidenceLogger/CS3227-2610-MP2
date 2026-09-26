@@ -94,6 +94,7 @@ public final class InvestigatorWorkspaceView {
         cases.setCellFactory(ignored -> caseCell());
         evidence.setCellFactory(ignored -> evidenceCell());
         requests.setCellFactory(ignored -> requestCell());
+        checkouts.setCellFactory(ignored -> checkoutCell());
         Button find = new Button("Search");
         find.setOnAction(event -> load(search.getText()));
         HBox searchRow = new HBox(8, search, find);
@@ -271,11 +272,12 @@ public final class InvestigatorWorkspaceView {
                     setGraphic(null);
                     return;
                 }
-                Label description = boldLabel(item.description());
+                Label id = boldLabel(item.evidenceId().toString());
+                Label description = new Label(item.description());
                 Label location = new Label("Storage: " + item.storageLocationName());
                 Label custodyState = new Label(item.custodyState().name());
                 custodyState.setTextFill(custodyStateColor(item.custodyState()));
-                VBox details = new VBox(2, description, location);
+                VBox details = new VBox(2, id, description, location);
                 HBox evidenceRow = new HBox(8, details, custodyState);
                 evidenceRow.setMaxWidth(Double.MAX_VALUE);
                 HBox.setHgrow(details, Priority.ALWAYS);
@@ -312,8 +314,9 @@ public final class InvestigatorWorkspaceView {
                     return;
                 }
                 VBox details = new VBox(2,
-                        boldLabel(item.evidenceDescription() + " @ " + item.storageLocationName()),
-                        new Label("for Case " + item.caseTitle()),
+                        boldLabel(item.evidenceId() + " @ " + item.storageLocationName()),
+                        new Label("Case: " + item.caseTitle()),
+                        new Label("Description: " + item.evidenceDescription()),
                         new Label("Expected Return: "
                                 + formatRequestExpectedReturn(item.expectedReturnAt())));
                 Label requestStatus = new Label(item.status().name());
@@ -340,6 +343,41 @@ public final class InvestigatorWorkspaceView {
         case APPROVED, CONSUMED -> Color.GREEN;
         case REJECTED, WITHDRAWN, CANCELLED -> Color.RED;
         };
+    }
+
+    /** Creates the display for an Investigator's active checkout. */
+    private static ListCell<CheckoutViews.Checkout> checkoutCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(CheckoutViews.Checkout item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                VBox details = new VBox(2,
+                        boldLabel("Case Title and Evidence ID: " + item.caseTitle()
+                                + " (" + item.evidenceId() + ")"),
+                        new Label("Collected At: " + formatCheckoutTimestamp(item.collectedAt())));
+                HBox checkoutRow = new HBox(8, details);
+                checkoutRow.setMaxWidth(Double.MAX_VALUE);
+                HBox.setHgrow(details, Priority.ALWAYS);
+                item.returnInitiatedAt().ifPresent(returnInitiatedAt -> {
+                    Label returnInitiated = new Label(
+                            "Return Initiated: " + formatCheckoutTimestamp(returnInitiatedAt));
+                    returnInitiated.setTextFill(Color.GREEN);
+                    checkoutRow.getChildren().add(returnInitiated);
+                });
+                setText(null);
+                setGraphic(checkoutRow);
+            }
+        };
+    }
+
+    /** Formats checkout timestamps for the Investigator display. */
+    static String formatCheckoutTimestamp(Instant timestamp) {
+        return CASE_CREATED_AT_FORMAT.format(Objects.requireNonNull(timestamp, "timestamp"));
     }
 
     private void load() {
