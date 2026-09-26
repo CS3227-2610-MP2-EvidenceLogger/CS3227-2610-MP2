@@ -98,6 +98,9 @@ public final class InvestigatorWorkspaceView {
         HBox.setHgrow(search, Priority.ALWAYS);
         TextField purpose = new TextField();
         purpose.setPromptText("Purpose");
+        Label purposeLabel = new Label("Purpose:");
+        HBox purposeRow = new HBox(8, purposeLabel, purpose);
+        HBox.setHgrow(purpose, Priority.ALWAYS);
         TextField expected = new TextField();
         expected.setPromptText("DD/MM/YYYY HH:MM");
         Label expectedLabel = new Label("Expected Return (Format: DD/MM/YYYY HH:MM):");
@@ -107,7 +110,7 @@ public final class InvestigatorWorkspaceView {
         requestError.setTextFill(Color.RED);
         requestError.setWrapText(true);
         submitRequest = new Button("Submit Checkout Request");
-        VBox requestFields = new VBox(8, purpose, expectedRow);
+        VBox requestFields = new VBox(8, purposeRow, expectedRow);
         HBox.setHgrow(requestFields, Priority.ALWAYS);
         submitRequest.setMaxHeight(Double.MAX_VALUE);
         HBox requestRow = new HBox(8, requestFields, submitRequest);
