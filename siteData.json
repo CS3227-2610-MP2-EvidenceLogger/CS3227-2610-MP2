@@ -41,10 +41,23 @@
       "src": "UserGuide.md",
       "headings": {
         "evidencelogger-user-guide": "EvidenceLogger User Guide",
-        "demo-only-accounts": "Demo-only accounts",
-        "evidence-custodian-workflow": "Evidence Custodian workflow",
-        "investigator-workflow": "Investigator workflow",
-        "mvp-limitations": "MVP limitations"
+        "quick-start": "Quick Start",
+        "1-start-the-application": "1. Start the application",
+        "2-sign-in-with-demo-data": "2. Sign in with demo data",
+        "features": "Features",
+        "1-general-workspace-behavior": "1. General workspace behavior",
+        "2-evidence-custodian-workspace": "2. Evidence Custodian workspace",
+        "3-investigator-workspace": "3. Investigator workspace",
+        "additional-information": "Additional information",
+        "1-first-startup-data": "1. First-startup data",
+        "2-status-and-validation-behavior": "2. Status and validation behavior",
+        "faq": "FAQ",
+        "1-why-can-an-investigator-not-find-a-case": "1. Why can an Investigator not find a case?",
+        "2-why-is-an-approved-request-not-checked-out": "2. Why is an approved request not checked out?",
+        "3-why-can-i-not-void-an-evidence-registration": "3. Why can I not void an evidence registration?",
+        "4-why-are-my-notes-unavailable-after-initiating-a-return": "4. Why are my notes unavailable after initiating a return?",
+        "5-what-should-i-do-when-an-operation-fails": "5. What should I do when an operation fails?",
+        "workflow-summary": "Workflow summary"
       },
       "headingKeywords": {}
     },
