@@ -2,8 +2,10 @@ package evidencelogger.ui.custodian;
 
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -15,25 +17,28 @@ import evidencelogger.domain.EvidenceCustodyState;
 import evidencelogger.service.dto.CaseworkViews;
 import evidencelogger.service.dto.CheckoutViews;
 import evidencelogger.service.dto.HistoryViews;
+import evidencelogger.ui.common.HistoryEventFormatter;
 import javafx.application.Platform;
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
-import javafx.scene.Node;
 import javafx.scene.Parent;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
-import javafx.scene.control.TextField;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextInputDialog;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.util.StringConverter;
 
-/** Custodian screens for decisions, handoffs, return inspection, and history. */
+/** Task-oriented Custodian work queue and case-history panel. */
 public final class CustodianWorkflowView {
     private static final double SPACING = 10;
     private static final Logger LOGGER = Logger.getLogger(
@@ -45,11 +50,11 @@ public final class CustodianWorkflowView {
     private final CustodianWorkflowController controller;
     private final Executor databaseExecutor;
     private final Consumer<String> showStatus;
-    private final ListView<CheckoutViews.Request> decisionRequests = new ListView<>();
-    private final ListView<CheckoutViews.Request> handoffRequests = new ListView<>();
-    private final ListView<CheckoutViews.Checkout> returnCheckouts = new ListView<>();
-    private final ComboBox<CaseworkViews.Case> historyCase = new ComboBox<>();
+    private final TableView<WorkItem> workItems = new TableView<>();
+    private final ComboBox<WorkflowCategory> category = new ComboBox<>();
     private final ListView<HistoryViews.Event> historyEvents = new ListView<>();
+    private final Label historyTitle = new Label("Select a case to view history");
+    private final Label actionHint = new Label("Select a task to see its available actions.");
     private final Button approve = new Button("Approve");
     private final Button reject = new Button("Reject");
     private final Button cancel = new Button("Cancel approval");
@@ -57,11 +62,14 @@ public final class CustodianWorkflowView {
     private final Button reverseHandoff = new Button("Reverse handoff");
     private final Button inspectReturn = new Button("Inspect and store");
     private final Button inspectUnplanned = new Button("Record unplanned return");
-    private final TextField cancellationReason = new TextField();
-    private final TextField reversalReason = new TextField();
-    private final TextField unplannedReason = new TextField();
+    private final Button correctHistory = new Button("Append correction");
+    private final Parent workQueue;
+    private final Parent historyPanel;
+    private List<CheckoutViews.Request> requests = List.of();
+    private List<CheckoutViews.Checkout> checkouts = List.of();
+    private CaseworkViews.Case selectedHistoryCase;
 
-    /** Creates the four A5 screens against the shared checkout interfaces. */
+    /** Creates the Custodian work queue and history panel. */
     public CustodianWorkflowView(
             CustodianWorkflowController controller,
             Executor databaseExecutor,
@@ -70,130 +78,159 @@ public final class CustodianWorkflowView {
         this.databaseExecutor = Objects.requireNonNull(databaseExecutor, "databaseExecutor");
         this.showStatus = Objects.requireNonNull(showStatus, "showStatus");
         configureControls();
+        workQueue = workQueueScreen();
+        historyPanel = historyScreen();
         refreshWorkflow();
     }
 
-    /** Returns the nested workflow screens for the Custodian workspace. */
+    /** Returns the single task-oriented workflow screen. */
     public Parent view() {
-        return new TabPane(
-                fixedTab("Request decisions", decisionScreen()),
-                fixedTab("Handoffs", handoffScreen()),
-                fixedTab("Return inspection", returnScreen()),
-                fixedTab("History", historyScreen()));
+        return workQueue;
     }
 
-    /** Supplies current case choices from the surrounding casework workspace. */
-    public void showCases(List<CaseworkViews.Case> cases) {
-        CaseworkViews.Case selected = historyCase.getValue();
-        historyCase.setItems(FXCollections.observableArrayList(cases));
-        if (selected != null && cases.contains(selected)) {
-            historyCase.setValue(selected);
-        } else if (!cases.isEmpty()) {
-            historyCase.getSelectionModel().selectFirst();
+    /** Returns the history panel embedded in the selected-case workspace. */
+    public Parent historyView() {
+        return historyPanel;
+    }
+
+    /** Loads history for the case selected in the surrounding case workspace. */
+    public void showHistoryForCase(CaseworkViews.Case selectedCase) {
+        selectedHistoryCase = selectedCase;
+        if (selectedCase == null) {
+            historyTitle.setText("Select a case to view history");
+            historyEvents.getItems().clear();
+            updateHistoryAction();
+            return;
         }
+        historyTitle.setText("History for " + selectedCase.title());
+        loadHistory(null);
     }
 
-    private Parent decisionScreen() {
-        Button refresh = new Button("Refresh requests");
-        refresh.setOnAction(event -> refreshRequests(refresh));
-        approve.setOnAction(event -> run(approve, () ->
-                controller.approve(selectedDecision()), ignored ->
-                    refreshAfterAction("Request approved")));
-        reject.setOnAction(event -> run(reject, () ->
-                controller.reject(selectedDecision()), ignored ->
-                    refreshAfterAction("Request rejected")));
-        cancel.setOnAction(event -> run(cancel, () ->
-                controller.cancel(selectedDecision(), cancellationReason.getText()),
-                ignored -> {
-                    cancellationReason.clear();
-                    refreshAfterAction("Approval cancelled");
-                }));
-        VBox box = screen(
-                "Approve or reject pending requests. Cancel an uncollected approval with a reason.",
-                refresh,
-                decisionRequests,
-                row(approve, reject),
-                row(cancellationReason, cancel));
-        VBox.setVgrow(decisionRequests, Priority.ALWAYS);
-        return box;
+    /** Refreshes workflow tasks after casework changes that affect evidence. */
+    public void refresh() {
+        refreshWorkflow();
     }
 
-    private Parent handoffScreen() {
-        Button refresh = new Button("Refresh handoffs");
-        refresh.setOnAction(event -> refreshRequests(refresh));
-        recordHandoff.setOnAction(event -> run(recordHandoff, () ->
-                controller.recordHandoff(selectedHandoff()),
-                ignored -> refreshAfterAction("Handoff recorded")));
-        reverseHandoff.setOnAction(event -> run(reverseHandoff, () ->
-                controller.reverseHandoff(selectedHandoff(), reversalReason.getText()),
-                ignored -> {
-                    reversalReason.clear();
-                    refreshAfterAction("Handoff reversed");
-                }));
-        VBox box = screen(
-                "Record physical handoff after approval, or reverse an unacknowledged handoff.",
-                refresh,
-                handoffRequests,
-                recordHandoff,
-                row(reversalReason, reverseHandoff));
-        VBox.setVgrow(handoffRequests, Priority.ALWAYS);
-        return box;
-    }
+    private Parent workQueueScreen() {
+        Label title = new Label("Work queue");
+        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+        Label guidance = new Label(
+                "Choose a task type. Only actions valid for the selected item are enabled.");
+        guidance.setWrapText(true);
+        Button refresh = new Button("Refresh work queue");
+        refresh.setOnAction(event -> refreshWorkflow());
 
-    private Parent returnScreen() {
-        Button refresh = new Button("Refresh returns");
-        refresh.setOnAction(event -> refreshCheckouts(refresh));
-        inspectReturn.setOnAction(event -> run(inspectReturn, () ->
-                controller.inspectReturn(selectedCheckout()),
-                ignored -> refreshAfterAction("Return inspected and stored")));
-        inspectUnplanned.setOnAction(event -> run(inspectUnplanned, () ->
-                controller.inspectUnplannedReturn(
-                        selectedCheckout(), unplannedReason.getText()),
-                ignored -> {
-                    unplannedReason.clear();
-                    refreshAfterAction("Unplanned return inspected and stored");
-                }));
-        VBox box = screen(
-                "Inspect initiated returns before storage, or record an unplanned return with a reason.",
-                refresh,
-                returnCheckouts,
-                inspectReturn,
-                row(unplannedReason, inspectUnplanned));
-        VBox.setVgrow(returnCheckouts, Priority.ALWAYS);
-        return box;
+        HBox filters = new HBox(SPACING, new Label("Show"), category, refresh);
+        HBox actions = new HBox(SPACING, approve, reject, cancel,
+                recordHandoff, reverseHandoff, inspectReturn, inspectUnplanned);
+        actionHint.setWrapText(true);
+
+        VBox top = new VBox(SPACING, title, guidance, filters);
+        VBox bottom = new VBox(SPACING, actionHint, actions);
+        BorderPane pane = new BorderPane(workItems);
+        pane.setTop(top);
+        pane.setBottom(bottom);
+        pane.setPadding(new Insets(16));
+        BorderPane.setMargin(workItems, new Insets(SPACING, 0, SPACING, 0));
+        return pane;
     }
 
     private Parent historyScreen() {
-        Button load = new Button("Load history");
-        load.setOnAction(event -> loadHistory(load));
-        historyCase.setOnAction(event -> loadHistory(load));
-        VBox box = screen(
-                "Read append-only case history in its authorized service order.",
-                row(historyCase, load),
-                historyEvents);
+        historyTitle.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+        historyEvents.setPlaceholder(new Label("No history entries for this case."));
+        historyEvents.setCellFactory(list -> textCell(HistoryEventFormatter::format));
+        historyEvents.getSelectionModel().selectedItemProperty().addListener((
+                observable, oldValue, newValue) -> updateHistoryAction());
+        correctHistory.setOnAction(event -> promptText(
+                "Append history correction",
+                "Correction text",
+                correction -> promptText(
+                        "Why is this correction needed?",
+                        "Correction reason",
+                        reason -> run(correctHistory, () -> controller.correctHistory(
+                                historyEvents.getSelectionModel().getSelectedItem(),
+                                correction,
+                                reason), ignored -> {
+                                    showStatus.accept("History correction appended");
+                                    loadHistory(null);
+                                }))));
+        Button refresh = new Button("Refresh history");
+        refresh.setOnAction(event -> loadHistory(refresh));
+        HBox controls = new HBox(SPACING, refresh, correctHistory);
+        VBox box = new VBox(SPACING, historyTitle, historyEvents, controls);
         VBox.setVgrow(historyEvents, Priority.ALWAYS);
+        box.setPadding(new Insets(12, 0, 0, 0));
+        updateHistoryAction();
         return box;
     }
 
     private void configureControls() {
-        cancellationReason.setPromptText("Cancellation reason");
-        reversalReason.setPromptText("Reversal reason");
-        unplannedReason.setPromptText("Unplanned return reason");
-        decisionRequests.setCellFactory(list -> textCell(CustodianWorkflowView::requestText));
-        handoffRequests.setCellFactory(list -> textCell(CustodianWorkflowView::requestText));
-        returnCheckouts.setCellFactory(list -> textCell(CustodianWorkflowView::checkoutText));
-        historyEvents.setCellFactory(list -> textCell(CustodianWorkflowView::historyText));
-        historyCase.setConverter(converter(CaseworkViews.Case::title));
-        historyCase.setMaxWidth(Double.MAX_VALUE);
-        decisionRequests.getSelectionModel().selectedItemProperty().addListener((
-                observable, oldValue, newValue) -> updateDecisionActions());
-        handoffRequests.getSelectionModel().selectedItemProperty().addListener((
-                observable, oldValue, newValue) -> updateHandoffActions());
-        returnCheckouts.getSelectionModel().selectedItemProperty().addListener((
-                observable, oldValue, newValue) -> updateReturnActions());
-        updateDecisionActions();
-        updateHandoffActions();
-        updateReturnActions();
+        category.setItems(FXCollections.observableArrayList(WorkflowCategory.values()));
+        category.getSelectionModel().select(WorkflowCategory.PENDING_DECISIONS);
+        category.setMaxWidth(Double.MAX_VALUE);
+        category.setOnAction(event -> rebuildWorkItems());
+        configureWorkTable();
+        workItems.getSelectionModel().selectedItemProperty().addListener((
+                observable, oldValue, newValue) -> updateActions());
+
+        approve.setOnAction(event -> confirm(
+                "Approve checkout request",
+                "Approve the selected request?", () ->
+                    run(approve, () -> controller.approve(selectedRequest()),
+                        ignored -> refreshAfterAction("Request approved"))));
+        reject.setOnAction(event -> confirm(
+                "Reject checkout request",
+                "Reject the selected request?", () ->
+                    run(reject, () -> controller.reject(selectedRequest()),
+                        ignored -> refreshAfterAction("Request rejected"))));
+        cancel.setOnAction(event -> promptText(
+                "Cancel approval",
+                "Cancellation reason",
+                reason -> confirm(
+                        "Cancel approved request",
+                        "Cancel this approval? The reason will be recorded in history.", () ->
+                            run(cancel, () -> controller.cancel(selectedRequest(), reason),
+                                ignored -> refreshAfterAction("Approval cancelled")))));
+        recordHandoff.setOnAction(event -> confirm(
+                "Record physical handoff",
+                "Confirm that the selected evidence was offered for physical collection.", () ->
+                    run(recordHandoff, () -> controller.recordHandoff(selectedRequest()),
+                        ignored -> refreshAfterAction("Handoff recorded"))));
+        reverseHandoff.setOnAction(event -> promptText(
+                "Reverse handoff",
+                "Reversal reason",
+                reason -> confirm(
+                        "Reverse recorded handoff",
+                        "Reverse this unacknowledged handoff?", () ->
+                            run(reverseHandoff, () ->
+                                    controller.reverseHandoff(selectedRequest(), reason),
+                                ignored -> refreshAfterAction("Handoff reversed")))));
+        inspectReturn.setOnAction(event -> confirm(
+                "Inspect and store return",
+                "Confirm that the physical item was received, inspected, and stored.", () ->
+                    run(inspectReturn, () -> controller.inspectReturn(selectedCheckout()),
+                        ignored -> refreshAfterAction("Return inspected and stored"))));
+        inspectUnplanned.setOnAction(event -> promptText(
+                "Record unplanned return",
+                "Unplanned return reason",
+                reason -> confirm(
+                        "Inspect and store unplanned return",
+                        "Confirm physical receipt and inspection of this unplanned return.", () ->
+                            run(inspectUnplanned, () -> controller.inspectUnplannedReturn(
+                                        selectedCheckout(), reason),
+                                ignored -> refreshAfterAction(
+                                        "Unplanned return inspected and stored")))));
+        updateActions();
+    }
+
+    private void configureWorkTable() {
+        workItems.setPlaceholder(new Label("No items need attention in this category."));
+        workItems.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        workItems.getColumns().add(column("Evidence", WorkItem::evidenceReference));
+        workItems.getColumns().add(column("Case", WorkItem::caseTitle));
+        workItems.getColumns().add(column("Investigator", WorkItem::investigator));
+        workItems.getColumns().add(column("Status", WorkItem::status));
+        workItems.getColumns().add(column("Due / collected", WorkItem::time));
     }
 
     private void refreshWorkflow() {
@@ -202,67 +239,90 @@ public final class CustodianWorkflowView {
     }
 
     private void refreshRequests(Button button) {
-        run(button, controller::listRequests, requests -> {
-            decisionRequests.setItems(FXCollections.observableArrayList(requests));
-            handoffRequests.setItems(FXCollections.observableArrayList(requests));
-            updateDecisionActions();
-            updateHandoffActions();
+        run(button, controller::listRequests, value -> {
+            requests = value;
+            rebuildWorkItems();
         });
     }
 
     private void refreshCheckouts(Button button) {
-        run(button, controller::listCheckouts, checkouts -> {
-            returnCheckouts.setItems(FXCollections.observableArrayList(checkouts));
-            updateReturnActions();
+        run(button, controller::listCheckouts, value -> {
+            checkouts = value;
+            rebuildWorkItems();
         });
     }
 
+    private void rebuildWorkItems() {
+        WorkflowCategory selectedCategory = category.getValue();
+        if (selectedCategory == null) {
+            return;
+        }
+        List<WorkItem> visible = new ArrayList<>();
+        for (CheckoutViews.Request request : requests) {
+            WorkflowCategory requestCategory = categoryFor(request);
+            if (requestCategory != null
+                    && (selectedCategory == WorkflowCategory.ALL_ACTIVE
+                            || selectedCategory == requestCategory)) {
+                visible.add(WorkItem.forRequest(request, requestCategory));
+            }
+        }
+        for (CheckoutViews.Checkout checkout : checkouts) {
+            WorkflowCategory checkoutCategory = categoryFor(checkout);
+            if (checkoutCategory != null
+                    && (selectedCategory == WorkflowCategory.ALL_ACTIVE
+                            || selectedCategory == checkoutCategory)) {
+                visible.add(WorkItem.forCheckout(checkout, checkoutCategory));
+            }
+        }
+        workItems.setItems(FXCollections.observableArrayList(visible));
+        updateActions();
+    }
+
     private void loadHistory(Button button) {
-        CaseworkViews.Case selected = historyCase.getValue();
-        run(button, () -> controller.listHistory(selected == null ? null : selected.caseId()),
+        CaseworkViews.Case selected = selectedHistoryCase;
+        if (selected == null) {
+            historyEvents.getItems().clear();
+            return;
+        }
+        run(button, () -> controller.listHistory(selected.caseId()),
                 events -> historyEvents.setItems(FXCollections.observableArrayList(events)));
     }
 
     private void refreshAfterAction(String message) {
         showStatus.accept(message);
         refreshWorkflow();
-        if (historyCase.getValue() != null) {
-            loadHistory(null);
-        }
+        loadHistory(null);
     }
 
-    private CheckoutViews.Request selectedDecision() {
-        return decisionRequests.getSelectionModel().getSelectedItem();
-    }
-
-    private CheckoutViews.Request selectedHandoff() {
-        return handoffRequests.getSelectionModel().getSelectedItem();
+    private CheckoutViews.Request selectedRequest() {
+        WorkItem selected = workItems.getSelectionModel().getSelectedItem();
+        return selected == null ? null : selected.request().orElse(null);
     }
 
     private CheckoutViews.Checkout selectedCheckout() {
-        return returnCheckouts.getSelectionModel().getSelectedItem();
+        WorkItem selected = workItems.getSelectionModel().getSelectedItem();
+        return selected == null ? null : selected.checkout().orElse(null);
     }
 
-    private void updateDecisionActions() {
+    private void updateActions() {
         ActionAvailability availability = actionAvailability(
-                selectedDecision(), null);
+                selectedRequest(), selectedCheckout());
         approve.setDisable(!availability.canDecide());
         reject.setDisable(!availability.canDecide());
         cancel.setDisable(!availability.canCancel());
-    }
-
-    private void updateHandoffActions() {
-        ActionAvailability availability = actionAvailability(
-                selectedHandoff(), null);
         recordHandoff.setDisable(!availability.canRecordHandoff());
         reverseHandoff.setDisable(!availability.canReverseHandoff());
-    }
-
-    private void updateReturnActions() {
-        ActionAvailability availability = actionAvailability(
-                null, selectedCheckout());
         inspectReturn.setDisable(!availability.canInspectReturn());
         inspectUnplanned.setDisable(!availability.canInspectUnplannedReturn());
+        WorkItem selected = workItems.getSelectionModel().getSelectedItem();
+        actionHint.setText(selected == null
+                ? "Select a task to see its available actions."
+                : selected.guidance());
+    }
+
+    private void updateHistoryAction() {
+        correctHistory.setDisable(
+                historyEvents.getSelectionModel().getSelectedItem() == null);
     }
 
     /** Computes enabled Custodian actions from current shared read models. */
@@ -294,7 +354,41 @@ public final class CustodianWorkflowView {
                 activeCheckout);
     }
 
-    /** Presentation action state for the current Custodian selections. */
+    /** Categorizes a request for the task filter, excluding terminal requests. */
+    static WorkflowCategory categoryFor(CheckoutViews.Request request) {
+        if (request.status() == CheckoutRequestStatus.PENDING) {
+            return WorkflowCategory.PENDING_DECISIONS;
+        }
+        if (request.status() == CheckoutRequestStatus.APPROVED
+                && request.handoffId().isEmpty()
+                && request.evidenceState() == EvidenceCustodyState.IN_STORAGE) {
+            return WorkflowCategory.READY_FOR_HANDOFF;
+        }
+        if (request.status() == CheckoutRequestStatus.APPROVED
+                && request.handoffId().isPresent()
+                && request.evidenceState() == EvidenceCustodyState.HANDOFF_AWAITING_ACK) {
+            return WorkflowCategory.AWAITING_ACKNOWLEDGEMENT;
+        }
+        return null;
+    }
+
+    /** Categorizes an active checkout for the task filter. */
+    static WorkflowCategory categoryFor(CheckoutViews.Checkout checkout) {
+        if (checkout.completedAt().isPresent()) {
+            return null;
+        }
+        if (checkout.returnInitiatedAt().isPresent()
+                && checkout.evidenceState() == EvidenceCustodyState.HANDIN_AWAITING_ACK) {
+            return WorkflowCategory.RETURNS_TO_INSPECT;
+        }
+        if (checkout.returnInitiatedAt().isEmpty()
+                && checkout.evidenceState() == EvidenceCustodyState.CHECKED_OUT) {
+            return WorkflowCategory.CURRENTLY_CHECKED_OUT;
+        }
+        return null;
+    }
+
+    /** Presentation action state for the current selection. */
     record ActionAvailability(
             boolean canDecide,
             boolean canCancel,
@@ -302,6 +396,80 @@ public final class CustodianWorkflowView {
             boolean canReverseHandoff,
             boolean canInspectReturn,
             boolean canInspectUnplannedReturn) {
+    }
+
+    enum WorkflowCategory {
+        PENDING_DECISIONS("Pending decisions"),
+        READY_FOR_HANDOFF("Ready for handoff"),
+        AWAITING_ACKNOWLEDGEMENT("Awaiting acknowledgement"),
+        RETURNS_TO_INSPECT("Returns to inspect"),
+        CURRENTLY_CHECKED_OUT("Currently checked out"),
+        ALL_ACTIVE("All active work");
+
+        private final String label;
+
+        WorkflowCategory(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    private record WorkItem(
+            Optional<CheckoutViews.Request> request,
+            Optional<CheckoutViews.Checkout> checkout,
+            WorkflowCategory category) {
+        private static WorkItem forRequest(
+                CheckoutViews.Request request, WorkflowCategory category) {
+            return new WorkItem(Optional.of(request), Optional.empty(), category);
+        }
+
+        private static WorkItem forCheckout(
+                CheckoutViews.Checkout checkout, WorkflowCategory category) {
+            return new WorkItem(Optional.empty(), Optional.of(checkout), category);
+        }
+
+        private String evidenceReference() {
+            return request.map(CheckoutViews.Request::evidenceReference)
+                    .orElseGet(() -> checkout.orElseThrow().evidenceReference());
+        }
+
+        private String caseTitle() {
+            return request.map(CheckoutViews.Request::caseTitle)
+                    .orElseGet(() -> checkout.orElseThrow().caseTitle());
+        }
+
+        private String investigator() {
+            return request.map(CheckoutViews.Request::requesterDisplayName)
+                    .orElseGet(() -> checkout.orElseThrow().collectorDisplayName());
+        }
+
+        private String status() {
+            return category.toString();
+        }
+
+        private String time() {
+            return request.map(value -> TIME_FORMAT.format(value.expectedReturnAt()))
+                    .orElseGet(() -> TIME_FORMAT.format(
+                            checkout.orElseThrow().collectedAt()));
+        }
+
+        private String guidance() {
+            return switch (category) {
+            case PENDING_DECISIONS -> "Review the purpose and due date, then approve or reject.";
+            case READY_FOR_HANDOFF -> "The request is approved and ready for physical handoff.";
+            case AWAITING_ACKNOWLEDGEMENT ->
+                "Waiting for Investigator acknowledgement. Reverse only if needed.";
+            case RETURNS_TO_INSPECT ->
+                "Physically inspect the returned item before storing it.";
+            case CURRENTLY_CHECKED_OUT ->
+                "The item is with the Investigator. Use unplanned return only after receipt.";
+            case ALL_ACTIVE -> "Select a task to see its available actions.";
+            };
+        }
     }
 
     private <T> void run(
@@ -361,62 +529,36 @@ public final class CustodianWorkflowView {
         return String.format("%s | %s | %s | %s | purpose: %s | due %s",
                 request.evidenceReference(), request.caseTitle(),
                 request.requesterDisplayName(), request.status(),
-                request.purpose(),
-                TIME_FORMAT.format(request.expectedReturnAt()));
+                request.purpose(), TIME_FORMAT.format(request.expectedReturnAt()));
     }
 
-    private static String checkoutText(CheckoutViews.Checkout checkout) {
-        return String.format("%s | %s | collected by %s | %s",
-                checkout.evidenceReference(), checkout.caseTitle(),
-                checkout.collectorDisplayName(), checkout.evidenceState());
+    private static TableColumn<WorkItem, String> column(
+            String title, java.util.function.Function<WorkItem, String> value) {
+        TableColumn<WorkItem, String> column = new TableColumn<>(title);
+        column.setCellValueFactory(cell -> new ReadOnlyStringWrapper(value.apply(cell.getValue())));
+        return column;
     }
 
-    private static String historyText(HistoryViews.Event event) {
-        String detail = event.correctionText().orElse(event.reason().orElse(""));
-        return String.format("%s | %s | %s (%s)%s",
-                TIME_FORMAT.format(event.eventTime()), event.type(),
-                event.actorDisplayName(), event.actorRole(),
-                detail.isBlank() ? "" : " | " + detail);
-    }
-
-    private static Tab fixedTab(String title, Parent content) {
-        Tab tab = new Tab(title, content);
-        tab.setClosable(false);
-        return tab;
-    }
-
-    private static VBox screen(String guidance, Node... content) {
-        VBox box = new VBox(SPACING);
-        box.setPadding(new Insets(16));
-        Label help = new Label(guidance);
-        help.setWrapText(true);
-        box.getChildren().add(help);
-        box.getChildren().addAll(content);
-        return box;
-    }
-
-    private static HBox row(Node... content) {
-        HBox box = new HBox(SPACING, content);
-        for (Node node : content) {
-            if (node instanceof TextField || node instanceof ComboBox<?>) {
-                HBox.setHgrow(node, Priority.ALWAYS);
-            }
+    private static void confirm(String title, String message, Runnable confirmedAction) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, message,
+                ButtonType.CANCEL, ButtonType.OK);
+        alert.setTitle(title);
+        alert.setHeaderText(title);
+        if (alert.showAndWait().filter(ButtonType.OK::equals).isPresent()) {
+            confirmedAction.run();
         }
-        return box;
     }
 
-    private static <T> StringConverter<T> converter(java.util.function.Function<T, String> text) {
-        return new StringConverter<>() {
-            @Override
-            public String toString(T value) {
-                return value == null ? "" : text.apply(value);
-            }
-
-            @Override
-            public T fromString(String value) {
-                return null;
-            }
-        };
+    private static void promptText(
+            String title, String prompt, Consumer<String> acceptedText) {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle(title);
+        dialog.setHeaderText(title);
+        dialog.setContentText(prompt);
+        dialog.showAndWait()
+                .map(String::strip)
+                .filter(value -> !value.isEmpty())
+                .ifPresent(acceptedText);
     }
 
     private static <T> ListCell<T> textCell(

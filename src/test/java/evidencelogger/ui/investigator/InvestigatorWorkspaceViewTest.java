@@ -208,6 +208,22 @@ class InvestigatorWorkspaceViewTest {
         assertTrue("Request could not be changed".equals(error.get()));
     }
 
+    @Test
+    void unexpectedBackgroundFailureRestoresBusyStateAndShowsSafeMessage() {
+        AtomicBoolean busy = new AtomicBoolean();
+        AtomicReference<Runnable> uiTask = new AtomicReference<>();
+        AtomicReference<String> error = new AtomicReference<>();
+
+        InvestigatorWorkspaceView.dispatchTask(Runnable::run, () -> {
+            throw new IllegalStateException("database path detail");
+        }, busy::set, uiTask::set, ignored -> { }, error::set);
+
+        assertTrue(busy.get());
+        uiTask.get().run();
+        assertFalse(busy.get());
+        assertEquals("The operation could not be completed. Please try again.", error.get());
+    }
+
     private static CaseworkViews.Evidence evidence(EvidenceCustodyState state) {
         return new CaseworkViews.Evidence(
                 new EvidenceId(UUID.randomUUID()),

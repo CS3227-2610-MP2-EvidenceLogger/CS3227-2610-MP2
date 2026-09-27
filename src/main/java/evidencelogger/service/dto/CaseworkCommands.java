@@ -3,6 +3,7 @@ package evidencelogger.service.dto;
 import java.util.Objects;
 
 import evidencelogger.domain.CaseId;
+import evidencelogger.domain.EvidenceId;
 import evidencelogger.domain.StorageLocationId;
 import evidencelogger.domain.UserId;
 
@@ -50,6 +51,14 @@ public final class CaseworkCommands {
         public RegisterEvidence {
             Objects.requireNonNull(caseId, "caseId");
             Objects.requireNonNull(storageLocationId, "storageLocationId");
+        }
+    }
+
+    /** Input for retaining but voiding an erroneous evidence registration. */
+    public record VoidEvidence(EvidenceId evidenceId, String reason) {
+        /** Validates the required evidence identifier. */
+        public VoidEvidence {
+            Objects.requireNonNull(evidenceId, "evidenceId");
         }
     }
 }

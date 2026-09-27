@@ -48,8 +48,18 @@ public final class DefaultHistoryQueryService implements HistoryQueryService {
                             event.actorDisplayName(),
                             event.actorRole(),
                             event.eventTime(),
+                            event.evidenceId(),
+                            event.evidenceReference(),
+                            event.requestId(),
+                            event.handoffId(),
+                            event.checkoutId(),
+                            event.previousRequestStatus(),
+                            event.resultingRequestStatus(),
+                            event.previousCustodyState(),
+                            event.resultingCustodyState(),
                             event.correctionText(),
-                            event.reason()))
+                            event.reason(),
+                            event.correctedEventId()))
                     .toList();
         } catch (RepositoryException.StorageFailure exception) {
             throw new ServiceException.StorageFailure("History could not be read", exception);
