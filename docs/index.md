@@ -15,8 +15,8 @@ notes and note corrections, and authorized ordered history with append-only docu
 corrections.
 
 - [User Guide](UserGuide.md)
-- [Architecture](Architecture.md)
 - [Developer Guide](DeveloperGuide.md)
+- [Reflections](Reflections.md)
 
 Use only fictional demonstration data. This project does not claim legal, police, or forensic
 certification.
