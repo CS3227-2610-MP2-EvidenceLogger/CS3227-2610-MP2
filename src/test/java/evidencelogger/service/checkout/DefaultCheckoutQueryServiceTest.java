@@ -250,7 +250,8 @@ class DefaultCheckoutQueryServiceTest {
         private static RequestDetails request(
                 CheckoutRequestId requestId, CaseId caseId, CheckoutRequestStatus status) {
             return new RequestDetails(
-                    requestId, new EvidenceId(UUID.randomUUID()), "EV-TEST", caseId,
+                    requestId, new EvidenceId(UUID.randomUUID()), "EV-TEST", "Evidence item",
+                    "Locker A", caseId,
                     caseId.equals(ASSIGNED_CASE_ID) ? "Assigned case" : "Unassigned case",
                     ASSIGNED_INVESTIGATOR_ID, "Alex Investigator", "Review evidence",
                     NOW.plusSeconds(3600), status, EvidenceCustodyState.CHECKED_OUT, NOW,

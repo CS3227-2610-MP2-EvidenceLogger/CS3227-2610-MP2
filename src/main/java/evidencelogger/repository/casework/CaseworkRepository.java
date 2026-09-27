@@ -52,6 +52,9 @@ public interface CaseworkRepository {
             Optional<UserId> assignedInvestigatorId,
             boolean includeVoided);
 
+    List<EvidenceRecord> listEvidenceForCase(
+            CaseId caseId, Optional<UserId> assignedInvestigatorId);
+
     List<InvestigatorRecord> listInvestigators();
 
     List<InvestigatorRecord> listAssignments(CaseId caseId);

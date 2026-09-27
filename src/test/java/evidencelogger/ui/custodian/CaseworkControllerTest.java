@@ -238,6 +238,10 @@ class CaseworkControllerTest {
         }
 
         @Override
+        public List<CaseworkViews.Evidence> listEvidenceForCase(CaseId caseId) {
+            return evidence;
+        }
+
         public List<CaseworkViews.Evidence> searchEvidenceIncludingVoided(String searchText) {
             includingVoidedSearchText = searchText;
             return evidence;

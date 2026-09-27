@@ -150,6 +150,8 @@ public final class DefaultCheckoutQueryService implements CheckoutQueryService {
                 details.requestId(),
                 details.evidenceId(),
                 details.evidenceReference(),
+                details.evidenceDescription(),
+                details.storageLocationName(),
                 details.caseId(),
                 details.caseTitle(),
                 details.requesterId(),

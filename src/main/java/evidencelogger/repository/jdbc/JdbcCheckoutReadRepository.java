@@ -23,12 +23,14 @@ import evidencelogger.repository.checkout.CheckoutReadRepository;
 /** JDBC implementation of scoped, display-ready checkout reads. */
 public final class JdbcCheckoutReadRepository implements CheckoutReadRepository {
     private static final String REQUEST_COLUMNS = "r.id AS request_id, r.evidence_id, "
-            + "e.public_reference, e.case_id, c.title AS case_title, r.requester_id, "
+            + "e.public_reference, e.description AS evidence_description, "
+            + "l.name AS storage_location_name, e.case_id, c.title AS case_title, r.requester_id, "
             + "requester.display_name AS requester_display_name, r.purpose, "
             + "r.expected_return_at, r.status, e.custody_state AS evidence_state, "
             + "r.requested_at AS submitted_at, h.id AS handoff_id, co.id AS checkout_id";
     private static final String REQUEST_TABLES = " FROM checkout_request r"
             + " JOIN evidence_item e ON e.id = r.evidence_id"
+            + " JOIN storage_location l ON l.id = e.storage_location_id"
             + " JOIN case_record c ON c.id = e.case_id"
             + " JOIN user_account requester ON requester.id = r.requester_id"
             + " LEFT JOIN handoff h ON h.request_id = r.id"
@@ -196,6 +198,8 @@ public final class JdbcCheckoutReadRepository implements CheckoutReadRepository 
                 CheckoutRequestId.parse(results.getString("request_id")),
                 evidencelogger.domain.EvidenceId.parse(results.getString("evidence_id")),
                 results.getString("public_reference"),
+                results.getString("evidence_description"),
+                results.getString("storage_location_name"),
                 CaseId.parse(results.getString("case_id")),
                 results.getString("case_title"),
                 UserId.parse(results.getString("requester_id")),
