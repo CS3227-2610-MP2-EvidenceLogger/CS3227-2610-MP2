@@ -51,7 +51,7 @@ The skill was checked in three ways:
 3. The visual-diff generated correctly reflects the changes I intended the agent to make.
 
 This was more useful than checking only that the skill file was syntactically valid.
-The tests demonstrated that the skill works as intended and modifies code according to my intentions. 
+The tests demonstrated that the skill works as intended and modifies code according to my intentions.
 
 ### 2. Code Refactor skill
 
