@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
 import evidencelogger.service.ServiceException;
@@ -19,18 +20,29 @@ public record ApplicationDataPaths(Path directory, Path database, Path logs) {
 
     /** Resolves platform-appropriate per-user data locations. */
     public static ApplicationDataPaths resolveDefault() {
-        String operatingSystem = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-        Path home = Path.of(System.getProperty("user.home"));
+        return resolve(
+                System.getProperty("os.name", ""),
+                Path.of(System.getProperty("user.home")),
+                System.getenv());
+    }
+
+    /** Resolves paths from explicit platform inputs without mutating process-global state. */
+    static ApplicationDataPaths resolve(
+            String operatingSystem, Path home, Map<String, String> environment) {
+        String normalizedOperatingSystem = Objects.requireNonNull(
+                operatingSystem, "operatingSystem").toLowerCase(Locale.ROOT);
+        Objects.requireNonNull(home, "home");
+        Objects.requireNonNull(environment, "environment");
         Path baseDirectory;
-        if (operatingSystem.contains("win")) {
-            String localAppData = System.getenv("LOCALAPPDATA");
+        if (normalizedOperatingSystem.contains("win")) {
+            String localAppData = environment.get("LOCALAPPDATA");
             baseDirectory = localAppData == null || localAppData.isBlank()
                     ? home.resolve("AppData").resolve("Local")
                     : Path.of(localAppData);
-        } else if (operatingSystem.contains("mac")) {
+        } else if (normalizedOperatingSystem.contains("mac")) {
             baseDirectory = home.resolve("Library").resolve("Application Support");
         } else {
-            String dataHome = System.getenv("XDG_DATA_HOME");
+            String dataHome = environment.get("XDG_DATA_HOME");
             baseDirectory = dataHome == null || dataHome.isBlank()
                     ? home.resolve(".local").resolve("share")
                     : Path.of(dataHome);

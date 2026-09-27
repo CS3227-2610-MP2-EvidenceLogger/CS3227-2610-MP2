@@ -60,6 +60,20 @@ shadowJar {
     archiveFileName = 'EvidenceLogger.jar'
 }
 
+def java25Launcher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(25)
+}
+
+tasks.register('releaseSmokeTest', Exec) {
+    dependsOn tasks.named('shadowJar')
+    doFirst {
+        commandLine java25Launcher.get().executablePath.asFile,
+                '--enable-native-access=ALL-UNNAMED',
+                '-jar', tasks.named('shadowJar').get().archiveFile.get().asFile,
+                '--smoke-test'
+    }
+}
+
 defaultTasks 'clean', 'test'
 
 dependencies {

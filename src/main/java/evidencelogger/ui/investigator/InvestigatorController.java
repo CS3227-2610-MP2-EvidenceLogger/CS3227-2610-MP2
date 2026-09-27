@@ -1,7 +1,7 @@
 package evidencelogger.ui.investigator;
 
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
@@ -165,11 +165,19 @@ public final class InvestigatorController {
         }
         try {
             return execute(() -> commands.submitRequest(new CheckoutCommands.SubmitRequest(
-                    evidence.evidenceId(), purpose.strip(), LocalDateTime.parse(
-                            time.strip(), EXPECTED_RETURN_FORMAT).toInstant(ZoneOffset.UTC))));
+                    evidence.evidenceId(), purpose.strip(),
+                    parseExpectedReturn(time, ZoneId.systemDefault()))));
         } catch (DateTimeParseException exception) {
             return Result.failure("Expected return date and time must use DD/MM/YYYY HH:MM");
         }
+    }
+
+    /** Interprets a timezone-free form value in the workstation's local zone. */
+    static java.time.Instant parseExpectedReturn(String time, ZoneId workstationZone) {
+        Objects.requireNonNull(workstationZone, "workstationZone");
+        return LocalDateTime.parse(time.strip(), EXPECTED_RETURN_FORMAT)
+                .atZone(workstationZone)
+                .toInstant();
     }
 
     private static <T> Result<T> execute(Supplier<T> operation) {

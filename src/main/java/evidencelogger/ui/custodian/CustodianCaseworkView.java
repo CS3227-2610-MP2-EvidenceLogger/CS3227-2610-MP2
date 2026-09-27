@@ -87,6 +87,7 @@ public final class CustodianCaseworkView {
     private List<CaseworkViews.Investigator> investigators = List.of();
     private List<CaseworkViews.StorageLocation> locations = List.of();
     private List<CaseworkViews.Evidence> evidence = List.of();
+    private List<CaseworkViews.Evidence> selectedCaseEvidence = List.of();
 
     /** Creates the Custodian workspace and starts loading its reference data. */
     public CustodianCaseworkView(
@@ -311,7 +312,7 @@ public final class CustodianCaseworkView {
         duplicateWarning.setWrapText(true);
         duplicateWarning.setStyle("-fx-text-fill: #9a6700;");
         Runnable updateWarning = () -> duplicateWarning.setText(possibleDuplicate(
-                evidence, selectedCase, description.getText(), location.getValue())
+                selectedCaseEvidence, selectedCase, description.getText(), location.getValue())
                         ? "Possible duplicate: the same description and location already exist "
                                 + "in this case. You may continue if these are separate items."
                         : "Existing evidence remains visible in the selected case behind this dialog.");
@@ -335,6 +336,7 @@ public final class CustodianCaseworkView {
                     run(null, () -> controller.registerEvidence(
                             selectedCase, description.getText(), selectedLocation), evidenceId -> {
                                 refreshEvidence(null);
+                                refreshCaseEvidence(selectedCase);
                                 workflowView.showHistoryForCase(selectedCase);
                                 showSuccess("Evidence registered: EV-" + evidenceId);
                             }, null));
@@ -361,6 +363,7 @@ public final class CustodianCaseworkView {
                                     controller.voidEvidence(selectedEvidence, reason),
                                     ignored -> {
                                         refreshEvidence(null);
+                                        refreshCaseEvidence(caseFor(selectedEvidence));
                                         workflowView.showHistoryForCase(caseFor(selectedEvidence));
                                         showSuccess("Evidence registration voided");
                                 }, null)));
@@ -399,10 +402,12 @@ public final class CustodianCaseworkView {
         workflowView.showHistoryForCase(selectedCase);
         if (selectedCase == null) {
             currentAssignments.getItems().clear();
+            selectedCaseEvidence = List.of();
+            caseEvidence.getItems().clear();
         } else {
             refreshAssignments(selectedCase, null);
+            refreshCaseEvidence(selectedCase);
         }
-        applyEvidenceFilters();
         updateCaseActions();
     }
 
@@ -478,17 +483,25 @@ public final class CustodianCaseworkView {
                 }, "Evidence refreshed");
     }
 
+    private void refreshCaseEvidence(CaseworkViews.Case selectedCase) {
+        if (selectedCase == null) {
+            selectedCaseEvidence = List.of();
+            caseEvidence.getItems().clear();
+            return;
+        }
+        run(null, () -> controller.listEvidenceForCase(selectedCase), loadedEvidence -> {
+            CaseworkViews.Case currentCase = selectedCase();
+            if (currentCase != null && currentCase.caseId().equals(selectedCase.caseId())) {
+                selectedCaseEvidence = List.copyOf(loadedEvidence);
+                caseEvidence.setItems(FXCollections.observableArrayList(selectedCaseEvidence));
+            }
+        }, null);
+    }
+
     private void applyEvidenceFilters() {
         List<CaseworkViews.Evidence> filtered = filterEvidence(
                 evidence, caseFilter.getValue(), locationFilter.getValue(), stateFilter.getValue());
         evidenceResults.setItems(FXCollections.observableArrayList(filtered));
-        CaseworkViews.Case selectedCase = selectedCase();
-        List<CaseworkViews.Evidence> selectedCaseEvidence = selectedCase == null
-                ? List.of()
-                : evidence.stream()
-                        .filter(item -> item.caseId().equals(selectedCase.caseId()))
-                        .toList();
-        caseEvidence.setItems(FXCollections.observableArrayList(selectedCaseEvidence));
     }
 
     private CaseworkViews.Case selectedCase() {

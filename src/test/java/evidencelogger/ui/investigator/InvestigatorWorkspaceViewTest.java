@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -39,20 +40,32 @@ class InvestigatorWorkspaceViewTest {
 
     @Test
     void formatsAssignedCaseCreationTimeForTheCaseList() {
-        assertEquals("26/09/2026 17:05", InvestigatorWorkspaceView.formatCaseCreatedAt(
-                Instant.parse("2026-09-26T17:05:45Z")));
+        Instant createdAt = Instant.parse("2026-09-26T17:05:45Z");
+        assertEquals(InvestigatorWorkspaceView.formatTimestamp(
+                createdAt, ZoneId.systemDefault()),
+                InvestigatorWorkspaceView.formatCaseCreatedAt(createdAt));
     }
 
     @Test
     void formatsExpectedReturnTimeForTheRequestList() {
-        assertEquals("26/09/2026 17:05", InvestigatorWorkspaceView.formatRequestExpectedReturn(
-                Instant.parse("2026-09-26T17:05:45Z")));
+        Instant expectedReturnAt = Instant.parse("2026-09-26T17:05:45Z");
+        assertEquals(InvestigatorWorkspaceView.formatTimestamp(
+                expectedReturnAt, ZoneId.systemDefault()),
+                InvestigatorWorkspaceView.formatRequestExpectedReturn(expectedReturnAt));
     }
 
     @Test
     void formatsCheckoutTimestampsForTheActiveCheckoutList() {
-        assertEquals("26/09/2026 17:05", InvestigatorWorkspaceView.formatCheckoutTimestamp(
-                Instant.parse("2026-09-26T17:05:45Z")));
+        Instant collectedAt = Instant.parse("2026-09-26T17:05:45Z");
+        assertEquals(InvestigatorWorkspaceView.formatTimestamp(
+                collectedAt, ZoneId.systemDefault()),
+                InvestigatorWorkspaceView.formatCheckoutTimestamp(collectedAt));
+    }
+
+    @Test
+    void formatsInvestigatorTimestampsInTheWorkstationZone() {
+        assertEquals("26/09/2026 17:05", InvestigatorWorkspaceView.formatTimestamp(
+                Instant.parse("2026-09-26T09:05:45Z"), ZoneId.of("Asia/Singapore")));
     }
 
     @Test
@@ -65,33 +78,49 @@ class InvestigatorWorkspaceViewTest {
                         "Clarified the observation", NOW.plusSeconds(60))));
 
         assertEquals("First observation…", InvestigatorWorkspaceView.notePreview(note.text()));
-        assertEquals("Alex Investigator · 25/09/2026 08:00",
+        String createdAt = InvestigatorWorkspaceView.formatTimestamp(
+                NOW, ZoneId.systemDefault());
+        String correctedAt = InvestigatorWorkspaceView.formatTimestamp(
+                NOW.plusSeconds(60), ZoneId.systemDefault());
+        assertEquals("Alex Investigator · " + createdAt,
                 InvestigatorWorkspaceView.noteByline(note));
         assertEquals("1 correction", InvestigatorWorkspaceView.correctionCountLabel(note));
         assertEquals("""
                 First observation
                 Further detail
                 ------------------------------------------------------
-                Correction by Alex Investigator · 25/09/2026 08:01
+                Correction by Alex Investigator · %s
                 Updated finding
                 Reason: Clarified the observation
-                ------------------------------------------------------""",
+                ------------------------------------------------------""".formatted(correctedAt),
                 InvestigatorWorkspaceView.formatSelectedNote(note));
     }
 
     @Test
-    void formatsHistoryRowsWithReadableEventMetadataAndCorrectionMarker() {
-        HistoryViews.Event collectionAcknowledged = history(AuditEventType.COLLECTION_ACKNOWLEDGED);
-        HistoryViews.Event corrected = history(AuditEventType.HISTORY_CORRECTED);
-        HistoryViews.Event evidenceVoided = history(AuditEventType.EVIDENCE_VOIDED);
+    void formatsHistoryRowsWithSubjectsTransitionsAndCorrectionContent() {
+        AuditEventId correctedEventId = new AuditEventId(UUID.randomUUID());
+        HistoryViews.Event collectionAcknowledged = new HistoryViews.Event(
+                new AuditEventId(UUID.randomUUID()), AuditEventType.COLLECTION_ACKNOWLEDGED,
+                "Alex Investigator", Role.INVESTIGATOR, NOW,
+                Optional.of(new EvidenceId(UUID.randomUUID())), Optional.of("EV-001"),
+                Optional.of(new CheckoutRequestId(UUID.randomUUID())),
+                Optional.of(new HandoffId(UUID.randomUUID())),
+                Optional.of(new CheckoutId(UUID.randomUUID())),
+                Optional.of(CheckoutRequestStatus.APPROVED),
+                Optional.of(CheckoutRequestStatus.CONSUMED),
+                Optional.of(EvidenceCustodyState.IN_STORAGE),
+                Optional.of(EvidenceCustodyState.CHECKED_OUT),
+                Optional.of("Corrected detail"), Optional.of("Clarified record"),
+                Optional.of(correctedEventId));
+        String text = InvestigatorWorkspaceView.historyText(collectionAcknowledged);
 
-        assertEquals("Collection acknowledged",
-                InvestigatorWorkspaceView.historyEventName(collectionAcknowledged));
-        assertEquals("Evidence voided", InvestigatorWorkspaceView.historyEventName(evidenceVoided));
-        assertEquals("Alex Investigator · 25/09/2026 08:00",
-                InvestigatorWorkspaceView.historyByline(collectionAcknowledged));
-        assertFalse(InvestigatorWorkspaceView.isCorrectionEvent(collectionAcknowledged));
-        assertTrue(InvestigatorWorkspaceView.isCorrectionEvent(corrected));
+        assertTrue(text.contains("evidence EV-001"));
+        assertTrue(text.contains("request "));
+        assertTrue(text.contains("checkout "));
+        assertTrue(text.contains("custody IN_STORAGE → CHECKED_OUT"));
+        assertTrue(text.contains("correction: Corrected detail"));
+        assertTrue(text.contains("reason: Clarified record"));
+        assertTrue(text.contains("corrects event "));
     }
 
     @Test

@@ -127,6 +127,15 @@ public final class CaseworkController {
                 : queries.searchEvidence(searchText));
     }
 
+    /** Lists the complete normal evidence inventory for the selected case. */
+    public Result<List<CaseworkViews.Evidence>> listEvidenceForCase(
+            CaseworkViews.Case selectedCase) {
+        if (selectedCase == null) {
+            return Result.failure("Select a case");
+        }
+        return execute(() -> queries.listEvidenceForCase(selectedCase.caseId()));
+    }
+
     /** Lists Investigators available for assignment. */
     public Result<List<CaseworkViews.Investigator>> listInvestigators() {
         return execute(queries::listInvestigators);
