@@ -63,7 +63,18 @@
     },
     {
       "src": "ZYReflection.md",
-      "headings": {},
+      "headings": {
+        "zi-yang-s-reflection-on-basic-agentic-se": "Zi Yang's Reflection on Basic Agentic SE",
+        "1-what-tasks-was-codex-customized-to-perform-and-how-was-the-appropriate-skill-set-determined": "1. What tasks was Codex customized to perform, and how was the appropriate skill set determined?",
+        "2-how-did-you-define-a-specific-skill-and-make-sure-it-was-working": "2. How did you define a specific skill and make sure it was working?",
+        "1-iterative-tdd-skill": "1. Iterative TDD skill",
+        "2-code-refactor-skill": "2. Code Refactor skill",
+        "3-code-review-skill": "3. Code Review skill",
+        "3-what-tasks-were-handled-effectively": "3. What tasks were handled effectively?",
+        "4-where-did-the-agent-require-guidance-or-correction": "4. Where did the agent require guidance or correction?",
+        "5-what-would-i-change-next-time-and-what-additional-skills-or-tools-would-help": "5. What would I change next time, and what additional skills or tools would help?",
+        "6-what-did-you-learn-about-designing-an-effective-single-ai-agent": "6. What did you learn about designing an effective single AI agent?"
+      },
       "headingKeywords": {}
     },
     {
