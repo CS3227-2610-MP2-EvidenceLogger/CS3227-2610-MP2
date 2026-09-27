@@ -8,6 +8,7 @@
     <li><a href="{{baseUrl}}/index.html" class="nav-link">Home</a></li>
     <li><a href="{{baseUrl}}/UserGuide.html" class="nav-link">User Guide</a></li>
     <li><a href="{{baseUrl}}/DeveloperGuide.html" class="nav-link">Developer Guide</a></li>
+    <li><a href="{{baseUrl}}/Reflections.html" class="nav-link">Reflections</a></li>
     <li><a href="https://github.com/CS3227-2610-MP2-EvidenceLogger/CS3227-2610-MP2" class="nav-link"><md>:fab-github:</md></a></li>
     <li slot="right">
       <form class="navbar-form">
@@ -27,6 +28,7 @@
 * [Home :house:]({{ baseUrl }}/index.html)
 * [User Guide]({{baseUrl}}/UserGuide.html)
 * [Developer Guide]({{baseUrl}}/DeveloperGuide.html)
+* [Reflections]({{baseUrl}}/Reflections.html)
       </site-nav>
     </div>
   </nav>

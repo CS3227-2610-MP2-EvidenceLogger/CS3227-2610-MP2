@@ -1,0 +1,4 @@
+interface:
+  display_name: "Iterative TDD"
+  short_description: "Build and grade reviewed TDD increments"
+  default_prompt: "Use $iterative-tdd to implement this requirement in human-approved, grader-verified TDD increments."

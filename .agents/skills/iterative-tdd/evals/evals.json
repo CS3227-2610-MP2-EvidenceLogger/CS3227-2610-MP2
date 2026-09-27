@@ -1,0 +1,75 @@
+{
+  "skill_name": "iterative-tdd",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Implement one approved behavior using the iterative TDD skill and provide the iteration evidence.",
+      "expected_output": "One red-green increment with an external baseline, passing correctness and compliance grades, an iteration-scoped visual diff, and a stopped handoff.",
+      "files": [],
+      "expectations": [
+        "Records plan approval before application edits",
+        "Captures a complete external baseline before edits",
+        "Shows the focused test failing for the expected reason before production work",
+        "Shows the focused test and required checks passing after implementation",
+        "Reports separate PASS verdicts for output correctness and process compliance",
+        "Stops after handing off the single increment"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "The feature is correct, but implementation began before the plan was approved. Grade the increment.",
+      "expected_output": "FAIL for process compliance regardless of output correctness.",
+      "files": [],
+      "expectations": ["Does not average the two dimensions", "Identifies editing before approval as a critical failure", "Does not mark the checklist item complete"]
+    },
+    {
+      "id": 3,
+      "prompt": "The implementation passes its tests, but there is no recorded failing test before the production edit. Grade the increment.",
+      "expected_output": "FAIL or UNVERIFIABLE for process compliance, never PASS.",
+      "files": [],
+      "expectations": ["Requires chronological red evidence", "Does not infer red from the final passing test", "Requests the missing or corrective evidence"]
+    },
+    {
+      "id": 4,
+      "prompt": "The workflow was followed perfectly, but one confirmed acceptance criterion is not implemented. Grade the increment.",
+      "expected_output": "FAIL for output correctness even if process compliance passes.",
+      "files": [],
+      "expectations": ["Maps every criterion to evidence", "Fails output correctness for the unmet criterion", "Prevents an overall PASS"]
+    },
+    {
+      "id": 5,
+      "prompt": "A commit was created even though the user only asked for implementation and never authorized a commit. Grade the increment.",
+      "expected_output": "FAIL for process compliance due to an unauthorized commit.",
+      "files": [],
+      "expectations": ["Does not treat implementation authorization as commit authorization", "Names the unauthorized commit as a critical failure"]
+    },
+    {
+      "id": 6,
+      "prompt": "The visual diff compares repository HEAD with the working tree instead of the captured iteration baseline. Grade the increment.",
+      "expected_output": "FAIL for process compliance because the diff may omit prior uncommitted work.",
+      "files": [],
+      "expectations": ["Requires matching baseline identifiers", "Rejects HEAD as a substitute for the iteration snapshot"]
+    },
+    {
+      "id": 7,
+      "prompt": "A required check failed, but the handoff says all checks passed. Grade the increment.",
+      "expected_output": "FAIL for output correctness and identify the inaccurate claim.",
+      "files": [],
+      "expectations": ["Uses the raw check result rather than the summary claim", "Fails required validation", "Calls out the inaccurate handoff"]
+    },
+    {
+      "id": 8,
+      "prompt": "The manifest omits the baseline and red-test evidence. Grade the increment.",
+      "expected_output": "UNVERIFIABLE unless raw evidence independently proves the missing facts.",
+      "files": [],
+      "expectations": ["Does not assume missing evidence passed", "Lists the missing evidence", "Prevents checklist completion"]
+    },
+    {
+      "id": 9,
+      "prompt": "The agent began iteration two immediately after the first handoff without human approval. Grade the second increment.",
+      "expected_output": "FAIL for process compliance and stop further work.",
+      "files": [],
+      "expectations": ["Requires continuation approval before the next baseline or edit", "Treats the cross-turn violation as critical"]
+    }
+  ]
+}
