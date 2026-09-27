@@ -40,7 +40,11 @@
     {
       "src": "UserGuide.md",
       "headings": {
-        "evidencelogger-user-guide": "EvidenceLogger User Guide"
+        "evidencelogger-user-guide": "EvidenceLogger User Guide",
+        "demo-only-accounts": "Demo-only accounts",
+        "evidence-custodian-workflow": "Evidence Custodian workflow",
+        "investigator-workflow": "Investigator workflow",
+        "mvp-limitations": "MVP limitations"
       },
       "headingKeywords": {}
     },
