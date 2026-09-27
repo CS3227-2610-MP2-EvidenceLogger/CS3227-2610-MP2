@@ -73,7 +73,7 @@ The agent also improved code quality through scoped refactoring (using the `code
 
 Code-review work (using `code-review` skill) also produced useful results. Reviews found persistence, authorization, migration, error-handling, and transaction risks, after which focused regression tests were added. One review identified nine valid issues, while another identified six additional specification-aligned findings.
 
-Documentation work was very effective. Re-reviewing the application exposed completed Custodian workflows and a changed Investigator date format that stale documentation did not yet reflect. See the [User Guide re-audit log](https://github.com/CS3227-2610-MP2-EvidenceLogger/CS3227-2610-MP2/tree/master/logs/Lim-ZY/2026-09-27-26-user-guide-reaudit.md).
+Documentation work was very effective. Re-reviewing the application exposed completed Custodian workflows and a changed Investigator date format that stale documentation did not yet reflect. See the [User Guide re-audit log](https://github.com/CS3227-2610-MP2-EvidenceLogger/CS3227-2610-MP2/tree/master/logs/Lim-ZY/2026-09-27-0926-user-guide-reaudit.md).
 
 Overall, the greatest productivity improvements came from automating repetitive repository inspection, implementing routine workflow layers, generating focused regression tests, and running consistent verification after each logical change.
 
