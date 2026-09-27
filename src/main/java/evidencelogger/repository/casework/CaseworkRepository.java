@@ -41,10 +41,16 @@ public interface CaseworkRepository {
             EvidenceCustodyState custodyState,
             Instant registeredAt);
 
+    Optional<EvidenceRecord> findEvidence(Connection connection, EvidenceId evidenceId);
+
+    boolean voidEvidenceIfEligible(Connection connection, EvidenceId evidenceId);
+
     List<CaseRecord> searchCases(String searchText, Optional<UserId> assignedInvestigatorId);
 
     List<EvidenceRecord> searchEvidence(
-            String searchText, Optional<UserId> assignedInvestigatorId);
+            String searchText,
+            Optional<UserId> assignedInvestigatorId,
+            boolean includeVoided);
 
     List<InvestigatorRecord> listInvestigators();
 

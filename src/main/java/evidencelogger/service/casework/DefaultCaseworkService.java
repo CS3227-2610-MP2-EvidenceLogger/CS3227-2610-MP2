@@ -182,6 +182,24 @@ public final class DefaultCaseworkService
     }
 
     @Override
+    public void voidEvidence(CaseworkCommands.VoidEvidence command) {
+        Objects.requireNonNull(command, "command");
+        AuthenticatedSession actor = authorization.requireCustodian();
+        String reason = requireNonBlank(command.reason(), "Void reason");
+        runTransaction(connection -> {
+            EvidenceRecord evidence = casework.findEvidence(connection, command.evidenceId())
+                    .orElseThrow(() -> new ServiceException.NotFound(
+                            "The evidence item does not exist"));
+            if (!casework.voidEvidenceIfEligible(connection, command.evidenceId())) {
+                throw new ServiceException.Conflict(
+                        "Only in-storage evidence with no checkout request can be voided");
+            }
+            auditEvents.append(connection, actor, evidenceVoidEvent(evidence, reason));
+            return null;
+        });
+    }
+
+    @Override
     public List<CaseworkViews.Case> searchCases(String searchText) {
         AuthenticatedSession session = sessions.requireSession();
         Optional<UserId> investigatorId = queryScope(session);
@@ -196,7 +214,17 @@ public final class DefaultCaseworkService
         AuthenticatedSession session = sessions.requireSession();
         Optional<UserId> investigatorId = queryScope(session);
         return runRead(() -> casework.searchEvidence(
-                normalizeSearch(searchText), investigatorId))
+                normalizeSearch(searchText), investigatorId, false))
+                .stream()
+                .map(DefaultCaseworkService::toView)
+                .toList();
+    }
+
+    @Override
+    public List<CaseworkViews.Evidence> searchEvidenceIncludingVoided(String searchText) {
+        authorization.requireCustodian();
+        return runRead(() -> casework.searchEvidence(
+                normalizeSearch(searchText), Optional.empty(), true))
                 .stream()
                 .map(DefaultCaseworkService::toView)
                 .toList();
@@ -362,6 +390,28 @@ public final class DefaultCaseworkService
                 Optional.empty(),
                 Optional.of(EvidenceCustodyState.IN_STORAGE),
                 Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty());
+    }
+
+    private static AuditEventDraft evidenceVoidEvent(
+            EvidenceRecord evidence, String reason) {
+        return new AuditEventDraft(
+                AuditEventType.EVIDENCE_VOIDED,
+                Optional.of(evidence.caseId()),
+                Optional.of(evidence.evidenceId()),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.of(evidence.storageLocationId()),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.of(EvidenceCustodyState.IN_STORAGE),
+                Optional.of(EvidenceCustodyState.VOIDED),
+                Optional.of(reason),
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),

@@ -112,6 +112,28 @@ class CustodianWorkflowViewTest {
     }
 
     @Test
+    void categorizesOnlyActiveWorkIntoUserFacingQueueGroups() {
+        assertEquals(CustodianWorkflowView.WorkflowCategory.PENDING_DECISIONS,
+                CustodianWorkflowView.categoryFor(request(
+                        CheckoutRequestStatus.PENDING,
+                        EvidenceCustodyState.IN_STORAGE,
+                        Optional.empty())));
+        assertEquals(CustodianWorkflowView.WorkflowCategory.READY_FOR_HANDOFF,
+                CustodianWorkflowView.categoryFor(request(
+                        CheckoutRequestStatus.APPROVED,
+                        EvidenceCustodyState.IN_STORAGE,
+                        Optional.empty())));
+        assertEquals(CustodianWorkflowView.WorkflowCategory.RETURNS_TO_INSPECT,
+                CustodianWorkflowView.categoryFor(checkout(
+                        EvidenceCustodyState.HANDIN_AWAITING_ACK,
+                        Optional.of(NOW))));
+        assertEquals(CustodianWorkflowView.WorkflowCategory.CURRENTLY_CHECKED_OUT,
+                CustodianWorkflowView.categoryFor(checkout(
+                        EvidenceCustodyState.CHECKED_OUT,
+                        Optional.empty())));
+    }
+
+    @Test
     void unexpectedBackgroundFailureRestoresBusyStateAndShowsSafeMessage() {
         AtomicBoolean busy = new AtomicBoolean();
         AtomicReference<Runnable> uiTask = new AtomicReference<>();

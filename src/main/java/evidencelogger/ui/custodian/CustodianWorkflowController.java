@@ -11,7 +11,9 @@ import evidencelogger.service.checkout.CheckoutCommandService;
 import evidencelogger.service.checkout.CheckoutQueryService;
 import evidencelogger.service.dto.CheckoutCommands;
 import evidencelogger.service.dto.CheckoutViews;
+import evidencelogger.service.dto.HistoryCommands;
 import evidencelogger.service.dto.HistoryViews;
+import evidencelogger.service.history.HistoryCommandService;
 import evidencelogger.service.history.HistoryQueryService;
 import evidencelogger.ui.common.ServiceFailurePresenter;
 
@@ -19,15 +21,18 @@ import evidencelogger.ui.common.ServiceFailurePresenter;
 public final class CustodianWorkflowController {
     private final CheckoutCommandService commands;
     private final CheckoutQueryService queries;
+    private final HistoryCommandService historyCommands;
     private final HistoryQueryService history;
 
     /** Creates a controller backed by the shared authorized checkout interfaces. */
     public CustodianWorkflowController(
             CheckoutCommandService commands,
             CheckoutQueryService queries,
+            HistoryCommandService historyCommands,
             HistoryQueryService history) {
         this.commands = Objects.requireNonNull(commands, "commands");
         this.queries = Objects.requireNonNull(queries, "queries");
+        this.historyCommands = Objects.requireNonNull(historyCommands, "historyCommands");
         this.history = Objects.requireNonNull(history, "history");
     }
 
@@ -47,6 +52,22 @@ public final class CustodianWorkflowController {
             return Result.failure("Select a case");
         }
         return execute(() -> history.listEventsForCase(caseId));
+    }
+
+    /** Appends a documentary correction to the selected history event. */
+    public Result<Void> correctHistory(
+            HistoryViews.Event event, String correctionText, String reason) {
+        if (event == null) {
+            return Result.failure("Select a history entry");
+        }
+        if (correctionText == null || correctionText.isBlank()) {
+            return Result.failure("Correction text is required");
+        }
+        if (reason == null || reason.isBlank()) {
+            return Result.failure("Correction reason is required");
+        }
+        return executeVoid(() -> historyCommands.correctEvent(
+                new HistoryCommands.CorrectEvent(event.eventId(), correctionText, reason)));
     }
 
     /** Approves the selected pending request. */

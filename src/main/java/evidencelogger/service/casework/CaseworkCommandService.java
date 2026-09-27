@@ -16,4 +16,6 @@ public interface CaseworkCommandService {
     StorageLocationId addStorageLocation(CaseworkCommands.AddStorageLocation command);
 
     EvidenceId registerEvidence(CaseworkCommands.RegisterEvidence command);
+
+    void voidEvidence(CaseworkCommands.VoidEvidence command);
 }

@@ -1,6 +1,7 @@
 package evidencelogger.repository.jdbc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -19,6 +20,11 @@ import org.junit.jupiter.api.io.TempDir;
 import evidencelogger.domain.AuditEventId;
 import evidencelogger.domain.AuditEventType;
 import evidencelogger.domain.CaseId;
+import evidencelogger.domain.CheckoutRequestId;
+import evidencelogger.domain.CheckoutRequestStatus;
+import evidencelogger.domain.EvidenceCustodyState;
+import evidencelogger.domain.EvidenceId;
+import evidencelogger.domain.StorageLocationId;
 import evidencelogger.domain.UserId;
 import evidencelogger.infrastructure.db.ConnectionFactory;
 import evidencelogger.infrastructure.db.JdbcTransactionRunner;
@@ -38,6 +44,12 @@ class JdbcAuditEventReadRepositoryTest {
             AuditEventId.parse("00000000-0000-0000-0000-000000000711");
     private static final AuditEventId SECOND_EVENT_ID =
             AuditEventId.parse("00000000-0000-0000-0000-000000000712");
+    private static final StorageLocationId LOCATION_ID = StorageLocationId.parse(
+            "00000000-0000-0000-0000-000000000730");
+    private static final EvidenceId EVIDENCE_ID = EvidenceId.parse(
+            "00000000-0000-0000-0000-000000000731");
+    private static final CheckoutRequestId REQUEST_ID = CheckoutRequestId.parse(
+            "00000000-0000-0000-0000-000000000732");
 
     @TempDir
     Path temporaryDirectory;
@@ -64,11 +76,28 @@ class JdbcAuditEventReadRepositoryTest {
                 .map(AuditEventReadRepository.EventDetails::eventId)
                 .toList());
         assertEquals(AuditEventType.REQUEST_REJECTED, events.getFirst().type());
+        assertEquals(Optional.of(EVIDENCE_ID), events.getFirst().evidenceId());
+        assertEquals(Optional.of("EV-HISTORY-001"), events.getFirst().evidenceReference());
+        assertEquals(Optional.of(REQUEST_ID), events.getFirst().requestId());
+        assertEquals(Optional.of(CheckoutRequestStatus.PENDING),
+                events.getFirst().previousRequestStatus());
+        assertEquals(Optional.of(CheckoutRequestStatus.REJECTED),
+                events.getFirst().resultingRequestStatus());
+        assertEquals(Optional.of(EvidenceCustodyState.IN_STORAGE),
+                events.getFirst().previousCustodyState());
+        assertEquals(Optional.of(EvidenceCustodyState.IN_STORAGE),
+                events.getFirst().resultingCustodyState());
         assertEquals("Insufficient purpose", events.getFirst().reason().orElseThrow());
         assertEquals(AuditEventType.EXAMINATION_NOTE_CORRECTED, events.getLast().type());
         assertEquals("Corrected identifier", events.getLast().correctionText().orElseThrow());
+        assertEquals(Optional.of(FIRST_EVENT_ID), events.getLast().correctedEventId());
         assertEquals(List.of(), transactions.inTransaction(connection -> reads.listEventsForCase(
                 connection, UNASSIGNED_CASE_ID, Optional.of(ALEX_ID))));
+
+        Optional<AuditEventReadRepository.EventSubjects> subjects = transactions.inTransaction(
+                connection -> reads.findEventSubjects(connection, FIRST_EVENT_ID));
+        assertTrue(subjects.isPresent());
+        assertEquals(Optional.of(ASSIGNED_CASE_ID), subjects.orElseThrow().caseId());
 
         transactions.inTransaction(connection -> {
             update(connection, "DELETE FROM case_assignment WHERE case_id = ? AND investigator_id = ?",
@@ -77,6 +106,16 @@ class JdbcAuditEventReadRepositoryTest {
         });
         assertEquals(List.of(), transactions.inTransaction(connection -> reads.listEventsForCase(
                 connection, ASSIGNED_CASE_ID, Optional.of(ALEX_ID))));
+    }
+
+    @Test
+    void returnsEmptySubjectsForMissingCorrectionTarget() {
+        Optional<AuditEventReadRepository.EventSubjects> subjects = transactions.inTransaction(
+                connection -> reads.findEventSubjects(
+                        connection,
+                        AuditEventId.parse("00000000-0000-0000-0000-000000000799")));
+
+        assertEquals(Optional.empty(), subjects);
     }
 
     private void seedFixture() {
@@ -88,10 +127,30 @@ class JdbcAuditEventReadRepositoryTest {
             update(connection, "INSERT INTO case_assignment(case_id, investigator_id, assigned_at)"
                     + " VALUES (?, ?, ?)", ASSIGNED_CASE_ID.toString(), ALEX_ID.toString(),
                     EVENT_TIME.toString());
+            update(connection, "INSERT INTO storage_location(id, name, created_at) VALUES (?, ?, ?)",
+                    LOCATION_ID.toString(), "History locker", EVENT_TIME.toString());
+            update(connection, "INSERT INTO evidence_item("
+                    + "id, case_id, public_reference, description, storage_location_id, "
+                    + "custody_state, registered_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    EVIDENCE_ID.toString(), ASSIGNED_CASE_ID.toString(), "EV-HISTORY-001",
+                    "History fixture", LOCATION_ID.toString(), "IN_STORAGE", EVENT_TIME.toString());
+            update(connection, "INSERT INTO checkout_request("
+                    + "id, evidence_id, requester_id, purpose, expected_return_at, status, "
+                    + "requested_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    REQUEST_ID.toString(), EVIDENCE_ID.toString(), ALEX_ID.toString(),
+                    "History fixture", EVENT_TIME.plusSeconds(3600).toString(),
+                    "REJECTED", EVENT_TIME.toString());
             insertEvent(connection, FIRST_EVENT_ID, AuditEventType.REQUEST_REJECTED,
                     ASSIGNED_CASE_ID, null, "Insufficient purpose");
+            update(connection, "UPDATE audit_event SET evidence_id = ?, request_id = ?, "
+                    + "previous_request_status = ?, resulting_request_status = ?, "
+                    + "previous_custody_state = ?, resulting_custody_state = ? WHERE id = ?",
+                    EVIDENCE_ID.toString(), REQUEST_ID.toString(), "PENDING", "REJECTED",
+                    "IN_STORAGE", "IN_STORAGE", FIRST_EVENT_ID.toString());
             insertEvent(connection, SECOND_EVENT_ID, AuditEventType.EXAMINATION_NOTE_CORRECTED,
                     ASSIGNED_CASE_ID, "Corrected identifier", null);
+            update(connection, "UPDATE audit_event SET corrected_event_id = ? WHERE id = ?",
+                    FIRST_EVENT_ID.toString(), SECOND_EVENT_ID.toString());
             insertEvent(connection, AuditEventId.parse("00000000-0000-0000-0000-000000000721"),
                     AuditEventType.REQUEST_REJECTED, UNASSIGNED_CASE_ID, null, "Private case");
             return null;

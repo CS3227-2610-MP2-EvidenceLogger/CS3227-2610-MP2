@@ -91,6 +91,11 @@ class CaseworkControllerTest {
                 new CaseworkCommands.RegisterEvidence(
                         CASE_ID, " Blue notebook ", LOCATION_ID),
                 service.registerEvidenceCommand);
+
+        assertTrue(controller.voidEvidence(service.evidence.getFirst(), " Wrong item ")
+                .successful());
+        assertEquals(new CaseworkCommands.VoidEvidence(EVIDENCE_ID, " Wrong item "),
+                service.voidEvidenceCommand);
     }
 
     @Test
@@ -99,6 +104,9 @@ class CaseworkControllerTest {
         assertEquals(" harbour ", service.caseSearchText);
         assertEquals(service.evidence, controller.searchEvidence(" EV-104 ").value());
         assertEquals(" EV-104 ", service.evidenceSearchText);
+        assertEquals(service.evidence,
+                controller.searchEvidence(" voided ", true).value());
+        assertEquals(" voided ", service.includingVoidedSearchText);
         assertEquals(service.investigators, controller.listInvestigators().value());
         assertEquals(service.investigators,
                 controller.listAssignments(selectedCase).value());
@@ -115,6 +123,10 @@ class CaseworkControllerTest {
                 controller.registerEvidence(selectedCase, "Item", null);
         CaseworkController.Result<List<CaseworkViews.Investigator>> assignments =
                 controller.listAssignments(null);
+        CaseworkController.Result<Void> voidMissing =
+                controller.voidEvidence(null, "Mistake");
+        CaseworkController.Result<Void> voidWithoutReason =
+                controller.voidEvidence(service.evidence.getFirst(), "   ");
 
         assertFalse(create.successful());
         assertEquals("Select an initial Investigator", create.message());
@@ -122,6 +134,8 @@ class CaseworkControllerTest {
         assertEquals("Select an assigned Investigator", remove.message());
         assertEquals("Select a storage location", registration.message());
         assertEquals("Select a case", assignments.message());
+        assertEquals("Select an evidence item", voidMissing.message());
+        assertEquals("Void reason is required", voidWithoutReason.message());
         assertEquals(0, service.commandCalls);
         assertNull(service.assignmentCaseId);
     }
@@ -164,8 +178,10 @@ class CaseworkControllerTest {
         private CaseworkCommands.RemoveAssignment removeAssignmentCommand;
         private CaseworkCommands.AddStorageLocation addLocationCommand;
         private CaseworkCommands.RegisterEvidence registerEvidenceCommand;
+        private CaseworkCommands.VoidEvidence voidEvidenceCommand;
         private String caseSearchText;
         private String evidenceSearchText;
+        private String includingVoidedSearchText;
         private CaseId assignmentCaseId;
         private int commandCalls;
 
@@ -204,6 +220,12 @@ class CaseworkControllerTest {
         }
 
         @Override
+        public void voidEvidence(CaseworkCommands.VoidEvidence command) {
+            beforeCommand();
+            voidEvidenceCommand = command;
+        }
+
+        @Override
         public List<CaseworkViews.Case> searchCases(String searchText) {
             caseSearchText = searchText;
             return cases;
@@ -212,6 +234,12 @@ class CaseworkControllerTest {
         @Override
         public List<CaseworkViews.Evidence> searchEvidence(String searchText) {
             evidenceSearchText = searchText;
+            return evidence;
+        }
+
+        @Override
+        public List<CaseworkViews.Evidence> searchEvidenceIncludingVoided(String searchText) {
+            includingVoidedSearchText = searchText;
             return evidence;
         }
 
