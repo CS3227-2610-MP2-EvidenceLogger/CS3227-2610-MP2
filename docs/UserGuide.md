@@ -78,7 +78,7 @@ The Custodian workspace has four tabs: **Cases**, **Evidence**, **Work queue**, 
 3. Select **Create case**.
 4. Select a case in the list to load its details.
 5. Under **Assigned investigators**, you may choose another Investigator and select **Assign investigator**.
-6. To remove one, select the Investigator and choose **Remove selected investigator**. This opens 
+6. To remove one, select the Investigator and choose **Remove selected investigator**. This opens
 a dialog window. Press **OK** to remove the investigator from the case.
 
 Use the case search field and **Search** to find cases by title. The selected case also shows its
@@ -206,7 +206,7 @@ The request appears in **My Requests** with its status. The request must be for 
 currently in storage and an item cannot have more than one pending or approved request.
 
 To withdraw a request, select one marked `PENDING` in **My Requests**, then select **Withdraw
-PENDING Request**. 
+PENDING Request**.
 
 <box type="info">
 
