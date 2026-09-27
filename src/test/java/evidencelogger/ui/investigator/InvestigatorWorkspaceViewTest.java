@@ -83,9 +83,11 @@ class InvestigatorWorkspaceViewTest {
     void formatsHistoryRowsWithReadableEventMetadataAndCorrectionMarker() {
         HistoryViews.Event collectionAcknowledged = history(AuditEventType.COLLECTION_ACKNOWLEDGED);
         HistoryViews.Event corrected = history(AuditEventType.HISTORY_CORRECTED);
+        HistoryViews.Event evidenceVoided = history(AuditEventType.EVIDENCE_VOIDED);
 
         assertEquals("Collection acknowledged",
                 InvestigatorWorkspaceView.historyEventName(collectionAcknowledged));
+        assertEquals("Evidence voided", InvestigatorWorkspaceView.historyEventName(evidenceVoided));
         assertEquals("Alex Investigator · 25/09/2026 08:00",
                 InvestigatorWorkspaceView.historyByline(collectionAcknowledged));
         assertFalse(InvestigatorWorkspaceView.isCorrectionEvent(collectionAcknowledged));
@@ -102,6 +104,8 @@ class InvestigatorWorkspaceViewTest {
                 EvidenceCustodyState.HANDIN_AWAITING_ACK));
         assertEquals(Color.RED, InvestigatorWorkspaceView.custodyStateColor(
                 EvidenceCustodyState.CHECKED_OUT));
+        assertEquals(Color.GRAY, InvestigatorWorkspaceView.custodyStateColor(
+                EvidenceCustodyState.VOIDED));
     }
 
     @Test
@@ -262,6 +266,9 @@ class InvestigatorWorkspaceViewTest {
     private static HistoryViews.Event history(AuditEventType type) {
         return new HistoryViews.Event(
                 new AuditEventId(UUID.randomUUID()), type, "Alex Investigator", Role.INVESTIGATOR,
-                NOW, Optional.empty(), Optional.empty());
+                NOW,
+                Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
+                Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
+                Optional.empty(), Optional.empty());
     }
 }

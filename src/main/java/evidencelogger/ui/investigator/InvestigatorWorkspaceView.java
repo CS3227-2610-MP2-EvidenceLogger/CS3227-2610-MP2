@@ -349,6 +349,7 @@ public final class InvestigatorWorkspaceView {
         case IN_STORAGE -> Color.GREEN;
         case HANDOFF_AWAITING_ACK, HANDIN_AWAITING_ACK -> Color.ORANGE;
         case CHECKED_OUT -> Color.RED;
+        case VOIDED -> Color.GRAY;
         };
     }
 
@@ -487,6 +488,7 @@ public final class InvestigatorWorkspaceView {
         case CASE_UNASSIGNED -> "Case unassigned";
         case LOCATION_ADDED -> "Location added";
         case EVIDENCE_REGISTERED -> "Evidence registered";
+        case EVIDENCE_VOIDED -> "Evidence voided";
         case REQUEST_SUBMITTED -> "Request submitted";
         case REQUEST_WITHDRAWN -> "Request withdrawn";
         case REQUEST_APPROVED -> "Request approved";
