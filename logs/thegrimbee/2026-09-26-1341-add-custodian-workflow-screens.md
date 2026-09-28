@@ -46,4 +46,4 @@ async dispatch does not recover from unexpected runtime failures; user documenta
 ## Reflection note
 
 ## Verification of summary
-Reviewed by: PENDING
+Reviewed by: Gabriel

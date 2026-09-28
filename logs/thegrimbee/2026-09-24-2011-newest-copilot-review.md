@@ -40,7 +40,7 @@ Effectiveness: High
 The review exposed coupled custody-state, request-state, and inspection invariants that are now verified against SQLite. The transaction-aware authorization service is prepared for command-layer use without leaking JDBC into the shared service interface.
 
 ## Verification of summary
-Reviewed by: PENDING
+Reviewed by: Gabriel
 
 ## Unresolved issues
 - This branch has no concrete checkout command-service implementation, so the connection-bound central authorization overloads are tested directly but cannot yet be invoked from that absent command layer.

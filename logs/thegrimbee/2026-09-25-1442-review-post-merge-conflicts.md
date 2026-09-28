@@ -36,4 +36,4 @@ assignment-scoped checkout reads were reviewed statically against the specificat
 ## Reflection note
 
 ## Verification of summary
-Reviewed by: PENDING
+Reviewed by: Gabriel

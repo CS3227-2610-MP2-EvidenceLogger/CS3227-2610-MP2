@@ -77,4 +77,4 @@ The CI matrix should be observed on the next pull request so the Developer Guide
 macOS and Linux outcomes rather than configuration alone.
 
 ## Verification of summary
-Reviewed by: PENDING
+Reviewed by: Gabriel

@@ -47,4 +47,4 @@ Unresolved issues: The reporting-only review recorded eight Medium and four Low 
 ## Reflection note
 
 ## Verification of summary
-Reviewed by: PENDING
+Reviewed by: Gabriel

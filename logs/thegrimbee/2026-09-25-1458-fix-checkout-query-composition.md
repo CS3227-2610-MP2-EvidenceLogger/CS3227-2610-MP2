@@ -45,4 +45,4 @@ ownership or shutdown obligation.
 ## Reflection note
 
 ## Verification of summary
-Reviewed by: PENDING
+Reviewed by: Gabriel

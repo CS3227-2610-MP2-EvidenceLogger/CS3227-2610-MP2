@@ -96,4 +96,4 @@ PENDING
 
 ## Verification of summary
 
-Reviewed by: PENDING
+Reviewed by: Gabriel

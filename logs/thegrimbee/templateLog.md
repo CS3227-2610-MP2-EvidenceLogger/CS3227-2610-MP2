@@ -51,4 +51,4 @@ What was useful?
 What would I change about the skill/instructions next time?
 
 ## Verification of summary
-Reviewed by: PENDING
+Reviewed by: Gabriel
