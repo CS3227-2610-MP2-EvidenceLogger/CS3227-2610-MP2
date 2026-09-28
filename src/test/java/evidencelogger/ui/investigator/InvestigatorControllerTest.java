@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,15 @@ class InvestigatorControllerTest {
         assertTrue(submitted.successful());
         assertEquals(evidence.evidenceId(), commands.evidenceId);
         assertEquals("Review seal", commands.purpose);
-        assertEquals(Instant.parse("2026-09-26T17:00:00Z"), commands.expectedReturnAt);
+        assertEquals(InvestigatorController.parseExpectedReturn(
+                "26/09/2026 17:00", ZoneId.systemDefault()), commands.expectedReturnAt);
+    }
+
+    @Test
+    void interpretsExpectedReturnInTheWorkstationZone() {
+        assertEquals(Instant.parse("2026-09-26T09:00:00Z"),
+                InvestigatorController.parseExpectedReturn(
+                        "26/09/2026 17:00", ZoneId.of("Asia/Singapore")));
     }
 
     @Test

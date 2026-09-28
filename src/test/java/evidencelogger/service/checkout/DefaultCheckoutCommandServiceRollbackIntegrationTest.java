@@ -158,6 +158,39 @@ class DefaultCheckoutCommandServiceRollbackIntegrationTest {
     }
 
     @Test
+    void failedHandoffRecordingRollsBackHandoffCustodyAndAudit() {
+        insertRequest(CheckoutRequestStatus.APPROVED);
+        currentSession = new AuthenticatedSession(
+                CUSTODIAN_ID, Role.EVIDENCE_CUSTODIAN, "Rollback Custodian");
+        DefaultCheckoutCommandService service = serviceWithFailingAuditWriter();
+
+        assertThrows(ServiceException.StorageFailure.class, () -> service.recordHandoff(
+                new CheckoutCommands.RecordHandoff(REQUEST_ID)));
+
+        assertEquals(CheckoutRequestStatus.APPROVED, requestStatus());
+        assertEquals(0, count("handoff"));
+        assertEquals("IN_STORAGE", value("SELECT custody_state FROM evidence_item"));
+        assertEquals(0, count("audit_event"));
+    }
+
+    @Test
+    void failedHandoffReversalRollsBackHandoffRequestCustodyAndAudit() {
+        insertCollectionFixture();
+        currentSession = new AuthenticatedSession(
+                CUSTODIAN_ID, Role.EVIDENCE_CUSTODIAN, "Rollback Custodian");
+        DefaultCheckoutCommandService service = serviceWithFailingAuditWriter();
+
+        assertThrows(ServiceException.StorageFailure.class, () -> service.reverseHandoff(
+                new CheckoutCommands.ReverseHandoff(HANDOFF_ID, "Collection cancelled")));
+
+        assertEquals(CheckoutRequestStatus.APPROVED, requestStatus());
+        assertNull(value("SELECT reversed_at FROM handoff"));
+        assertNull(value("SELECT reversal_reason FROM handoff"));
+        assertEquals("HANDOFF_AWAITING_ACK", value("SELECT custody_state FROM evidence_item"));
+        assertEquals(0, count("audit_event"));
+    }
+
+    @Test
     void failedCollectionRollsBackHandoffCheckoutRequestEvidenceAndAudit() {
         insertCollectionFixture();
         DefaultCheckoutCommandService service = serviceWithFailingAuditWriter();

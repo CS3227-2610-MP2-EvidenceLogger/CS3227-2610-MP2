@@ -374,6 +374,10 @@ class MigrationUpgradeIntegrationTest {
             assertEquals(1, scalar(statement, "SELECT count(*) FROM schema_migration"));
             assertEquals(1, scalar(statement,
                     "SELECT count(*) FROM schema_migration WHERE version = 1"));
+            assertEquals(0, scalar(statement, "SELECT count(*) FROM sqlite_master"
+                    + " WHERE type = 'table' AND name = 'return_inspection'"));
+            assertEquals(0, scalar(statement, "SELECT count(*)"
+                    + " FROM pragma_table_info('handoff') WHERE name = 'reversal_reason'"));
         }
     }
 

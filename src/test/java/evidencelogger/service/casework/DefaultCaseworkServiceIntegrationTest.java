@@ -200,6 +200,9 @@ class DefaultCaseworkServiceIntegrationTest {
         assertEquals(1, retained.size());
         assertEquals(EvidenceCustodyState.VOIDED, retained.getFirst().custodyState());
         assertEquals(EvidenceCustodyState.VOIDED, evidenceState(evidenceId));
+        sessions.set(ALEX_ID, Role.INVESTIGATOR, "Alex Investigator");
+        assertEquals(List.of(), service.listEvidenceForCase(caseId));
+        sessions.set(CUSTODIAN_ID, Role.EVIDENCE_CUSTODIAN, "Morgan Custodian");
         assertVoidAudit(evidenceId, caseId, locationId,
                 "Registered the wrong physical item");
     }

@@ -1,7 +1,7 @@
 package evidencelogger.ui.investigator;
 
 import java.time.Instant;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 import java.util.concurrent.Executor;
@@ -51,9 +51,7 @@ public final class InvestigatorWorkspaceView {
     private static final double MINIMUM_BODY_WIDTH = 1400;
     private static final double SECTION_HEADING_FONT_SIZE = 16;
     private static final int NOTE_PREVIEW_MAX_LENGTH = 60;
-    private static final DateTimeFormatter CASE_CREATED_AT_FORMAT = DateTimeFormatter
-            .ofPattern("dd/MM/uuuu HH:mm")
-            .withZone(ZoneOffset.UTC);
+    private static final String TIME_PATTERN = "dd/MM/uuuu HH:mm";
     private static final Logger LOGGER = Logger.getLogger(
             InvestigatorWorkspaceView.class.getName());
 
@@ -83,11 +81,11 @@ public final class InvestigatorWorkspaceView {
         this.controller = Objects.requireNonNull(controller, "controller");
         this.databaseExecutor = Objects.requireNonNull(databaseExecutor, "databaseExecutor");
         Objects.requireNonNull(signOut, "signOut");
-        history.setCellFactory(list -> new javafx.scene.control.ListCell<>() {
+        history.setCellFactory(list -> new ListCell<>() {
             @Override
             protected void updateItem(HistoryViews.Event item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty || item == null ? "" : HistoryEventFormatter.format(item));
+                setText(empty || item == null ? "" : historyText(item));
             }
         });
         BorderPane workspace = new BorderPane();
@@ -115,7 +113,6 @@ public final class InvestigatorWorkspaceView {
         requests.setCellFactory(ignored -> requestCell());
         checkouts.setCellFactory(ignored -> checkoutCell());
         notes.setCellFactory(ignored -> noteCell());
-        history.setCellFactory(ignored -> historyCell());
         Button find = new Button("Search");
         find.setOnAction(event -> load(search.getText()));
         HBox searchRow = new HBox(8, search, find);
@@ -306,7 +303,7 @@ public final class InvestigatorWorkspaceView {
 
     /** Formats assigned-case creation timestamps in the Investigator display. */
     static String formatCaseCreatedAt(Instant createdAt) {
-        return CASE_CREATED_AT_FORMAT.format(Objects.requireNonNull(createdAt, "createdAt"));
+        return formatTimestamp(createdAt, ZoneId.systemDefault());
     }
 
     /** Creates the three-line presentation for assigned evidence. */
@@ -383,8 +380,7 @@ public final class InvestigatorWorkspaceView {
 
     /** Formats a request's expected return time for the Investigator display. */
     static String formatRequestExpectedReturn(Instant expectedReturnAt) {
-        return CASE_CREATED_AT_FORMAT.format(
-                Objects.requireNonNull(expectedReturnAt, "expectedReturnAt"));
+        return formatTimestamp(expectedReturnAt, ZoneId.systemDefault());
     }
 
     /** Returns the request-status colour used in the Investigator request list. */
@@ -453,71 +449,9 @@ public final class InvestigatorWorkspaceView {
         };
     }
 
-    /** Creates the compact presentation for an immutable custody-history event. */
-    private static ListCell<HistoryViews.Event> historyCell() {
-        return new ListCell<>() {
-            @Override
-            protected void updateItem(HistoryViews.Event item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setGraphic(null);
-                    return;
-                }
-                VBox details = new VBox(2,
-                        boldLabel(historyEventName(item)), new Label(historyByline(item)));
-                BorderPane historyRow = new BorderPane();
-                historyRow.setTop(details);
-                historyRow.setMaxWidth(Double.MAX_VALUE);
-                if (isCorrectionEvent(item)) {
-                    Label corrected = new Label("Corrected");
-                    historyRow.setBottom(corrected);
-                    BorderPane.setAlignment(corrected, Pos.BOTTOM_RIGHT);
-                }
-                setText(null);
-                setGraphic(historyRow);
-            }
-        };
-    }
-
-    /** Converts an audit event type to the readable name shown in custody history. */
-    static String historyEventName(HistoryViews.Event event) {
-        return switch (Objects.requireNonNull(event, "event").type()) {
-        case CASE_CREATED -> "Case created";
-        case CASE_ASSIGNED -> "Case assigned";
-        case CASE_UNASSIGNED -> "Case unassigned";
-        case LOCATION_ADDED -> "Location added";
-        case EVIDENCE_REGISTERED -> "Evidence registered";
-        case EVIDENCE_VOIDED -> "Evidence voided";
-        case REQUEST_SUBMITTED -> "Request submitted";
-        case REQUEST_WITHDRAWN -> "Request withdrawn";
-        case REQUEST_APPROVED -> "Request approved";
-        case REQUEST_REJECTED -> "Request rejected";
-        case REQUEST_CANCELLED -> "Request cancelled";
-        case HANDOFF_RECORDED -> "Handoff recorded";
-        case HANDOFF_REVERSED -> "Handoff reversed";
-        case COLLECTION_ACKNOWLEDGED -> "Collection acknowledged";
-        case EXAMINATION_NOTE_ADDED -> "Examination note added";
-        case RETURN_INITIATED -> "Return initiated";
-        case RETURN_INSPECTED_STORED -> "Return inspected and stored";
-        case UNPLANNED_RETURN_INSPECTED -> "Unplanned return inspected";
-        case HISTORY_CORRECTED -> "History corrected";
-        case EXAMINATION_NOTE_CORRECTED -> "Examination note corrected";
-        };
-    }
-
-    /** Formats actor and time metadata for a custody-history entry. */
-    static String historyByline(HistoryViews.Event event) {
-        Objects.requireNonNull(event, "event");
-        return event.actorDisplayName() + " · " + formatCheckoutTimestamp(event.eventTime());
-    }
-
-    /** Determines whether a history entry represents an append-only correction. */
-    static boolean isCorrectionEvent(HistoryViews.Event event) {
-        return switch (Objects.requireNonNull(event, "event").type()) {
-        case HISTORY_CORRECTED, EXAMINATION_NOTE_CORRECTED -> true;
-        default -> false;
-        };
+    /** Formats every subject, transition, reason, and correction shown in history. */
+    static String historyText(HistoryViews.Event event) {
+        return HistoryEventFormatter.format(Objects.requireNonNull(event, "event"));
     }
 
     /** Produces the one-line note preview shown in the selected checkout's note list. */
@@ -566,7 +500,16 @@ public final class InvestigatorWorkspaceView {
 
     /** Formats checkout timestamps for the Investigator display. */
     static String formatCheckoutTimestamp(Instant timestamp) {
-        return CASE_CREATED_AT_FORMAT.format(Objects.requireNonNull(timestamp, "timestamp"));
+        return formatTimestamp(timestamp, ZoneId.systemDefault());
+    }
+
+    /** Formats an instant in the supplied workstation zone for deterministic presentation tests. */
+    static String formatTimestamp(Instant timestamp, ZoneId workstationZone) {
+        Objects.requireNonNull(timestamp, "timestamp");
+        Objects.requireNonNull(workstationZone, "workstationZone");
+        return DateTimeFormatter.ofPattern(TIME_PATTERN)
+                .withZone(workstationZone)
+                .format(timestamp);
     }
 
     private void load() {

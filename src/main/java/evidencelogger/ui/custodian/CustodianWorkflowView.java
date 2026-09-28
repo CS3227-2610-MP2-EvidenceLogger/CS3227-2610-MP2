@@ -229,6 +229,7 @@ public final class CustodianWorkflowView {
         workItems.getColumns().add(column("Evidence", WorkItem::evidenceReference));
         workItems.getColumns().add(column("Case", WorkItem::caseTitle));
         workItems.getColumns().add(column("Investigator", WorkItem::investigator));
+        workItems.getColumns().add(column("Purpose", WorkItem::purpose));
         workItems.getColumns().add(column("Status", WorkItem::status));
         workItems.getColumns().add(column("Due / collected", WorkItem::time));
     }
@@ -418,11 +419,11 @@ public final class CustodianWorkflowView {
         }
     }
 
-    private record WorkItem(
+    record WorkItem(
             Optional<CheckoutViews.Request> request,
             Optional<CheckoutViews.Checkout> checkout,
             WorkflowCategory category) {
-        private static WorkItem forRequest(
+        static WorkItem forRequest(
                 CheckoutViews.Request request, WorkflowCategory category) {
             return new WorkItem(Optional.of(request), Optional.empty(), category);
         }
@@ -445,6 +446,10 @@ public final class CustodianWorkflowView {
         private String investigator() {
             return request.map(CheckoutViews.Request::requesterDisplayName)
                     .orElseGet(() -> checkout.orElseThrow().collectorDisplayName());
+        }
+
+        String purpose() {
+            return request.map(CheckoutViews.Request::purpose).orElse("—");
         }
 
         private String status() {
@@ -523,13 +528,6 @@ public final class CustodianWorkflowView {
                 }
             });
         });
-    }
-
-    static String requestText(CheckoutViews.Request request) {
-        return String.format("%s | %s | %s | %s | purpose: %s | due %s",
-                request.evidenceReference(), request.caseTitle(),
-                request.requesterDisplayName(), request.status(),
-                request.purpose(), TIME_FORMAT.format(request.expectedReturnAt()));
     }
 
     private static TableColumn<WorkItem, String> column(

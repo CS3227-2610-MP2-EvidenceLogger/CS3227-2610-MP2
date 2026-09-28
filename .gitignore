@@ -6,6 +6,7 @@ references/
 /out/
 /target/
 *.class
+/bin/
 
 # Runtime databases and sidecar files
 *.db

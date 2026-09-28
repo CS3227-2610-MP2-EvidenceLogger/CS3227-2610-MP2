@@ -29,6 +29,7 @@ import evidencelogger.domain.AuditEventType;
 import evidencelogger.domain.CaseId;
 import evidencelogger.domain.CheckoutId;
 import evidencelogger.domain.CheckoutRequestId;
+import evidencelogger.domain.CheckoutRequestStatus;
 import evidencelogger.domain.EvidenceCustodyState;
 import evidencelogger.domain.EvidenceId;
 import evidencelogger.domain.ReturnInspectionOutcome;
@@ -208,6 +209,192 @@ class ApplicationCompositionIntegrationTest {
         }
     }
 
+    @Test
+    void composedServicesEnforceAuthenticationRoleAndCurrentAssignmentIsolation()
+            throws IOException {
+        try (ApplicationComposition composition = ApplicationComposition.start(
+                temporaryDirectory.resolve("isolation.db"), FIXED_CLOCK)) {
+            DemoAccount custodian = demoAccount(Role.EVIDENCE_CUSTODIAN);
+            DemoAccount alex = demoAccount("investigator.alex");
+            DemoAccount blair = demoAccount("investigator.blair");
+
+            composition.authentication().signIn(
+                    custodian.username(), custodian.password().toCharArray());
+            evidencelogger.service.dto.CaseworkViews.Investigator alexRecord =
+                    composition.caseworkQueries().listInvestigators().stream()
+                            .filter(candidate -> candidate.username().equals(alex.username()))
+                            .findFirst()
+                            .orElseThrow();
+            CaseId caseId = composition.caseworkCommands().createCase(
+                    new CaseworkCommands.CreateCase(
+                            "Assignment-isolated case", alexRecord.investigatorId()));
+            StorageLocationId locationId = composition.caseworkCommands().addStorageLocation(
+                    new CaseworkCommands.AddStorageLocation("Isolation locker"));
+            EvidenceId evidenceId = composition.caseworkCommands().registerEvidence(
+                    new CaseworkCommands.RegisterEvidence(
+                            caseId, "Assignment-isolated item", locationId));
+
+            assertThrows(ServiceException.Unauthenticated.class, () ->
+                    composition.authentication().signIn(
+                            custodian.username(), "wrong password".toCharArray()));
+            assertThrows(ServiceException.Unauthenticated.class, () ->
+                    composition.caseworkQueries().searchCases(""));
+
+            composition.authentication().signIn(alex.username(), alex.password().toCharArray());
+            assertEquals(List.of(caseId), composition.caseworkQueries().searchCases("").stream()
+                    .map(evidencelogger.service.dto.CaseworkViews.Case::caseId)
+                    .toList());
+            assertEquals(List.of(evidenceId),
+                    composition.caseworkQueries().searchEvidence("").stream()
+                            .map(evidencelogger.service.dto.CaseworkViews.Evidence::evidenceId)
+                            .toList());
+            CheckoutRequestId requestId = composition.checkoutCommands().submitRequest(
+                    new CheckoutCommands.SubmitRequest(
+                            evidenceId,
+                            "Verify assignment isolation",
+                            FIXED_CLOCK.instant().plusSeconds(3600)));
+            composition.checkoutCommands().withdrawRequest(
+                    new CheckoutCommands.WithdrawRequest(requestId));
+
+            composition.authentication().signIn(
+                    blair.username(), blair.password().toCharArray());
+            assertEquals(List.of(), composition.caseworkQueries().searchCases(""));
+            assertEquals(List.of(), composition.caseworkQueries().searchEvidence(""));
+            assertEquals(List.of(), composition.checkoutQueries().listRequests());
+            assertThrows(ServiceException.Forbidden.class, () ->
+                    composition.caseworkQueries().listEvidenceForCase(caseId));
+            assertThrows(ServiceException.NotFound.class, () ->
+                    composition.checkoutQueries().getRequest(requestId));
+            assertThrows(ServiceException.Forbidden.class, () ->
+                    composition.historyQueries().listEventsForCase(caseId));
+            assertThrows(ServiceException.Forbidden.class, () ->
+                    composition.caseworkCommands().registerEvidence(
+                            new CaseworkCommands.RegisterEvidence(
+                                    caseId, "Forbidden registration", locationId)));
+
+            composition.authentication().signIn(
+                    custodian.username(), custodian.password().toCharArray());
+            composition.caseworkCommands().removeAssignment(
+                    new CaseworkCommands.RemoveAssignment(
+                            caseId, alexRecord.investigatorId()));
+            composition.authentication().signIn(alex.username(), alex.password().toCharArray());
+            assertEquals(List.of(), composition.caseworkQueries().searchCases(""));
+            assertEquals(List.of(), composition.caseworkQueries().searchEvidence(""));
+            assertThrows(ServiceException.Forbidden.class, () ->
+                    composition.caseworkQueries().listEvidenceForCase(caseId));
+            assertThrows(ServiceException.Forbidden.class, () ->
+                    composition.historyQueries().listEventsForCase(caseId));
+        }
+    }
+
+    @Test
+    void composedCustodianAlternativeWorkflowsPersistExpectedStatesAndHistory()
+            throws IOException {
+        try (ApplicationComposition composition = ApplicationComposition.start(
+                temporaryDirectory.resolve("custodian-alternatives.db"), FIXED_CLOCK)) {
+            DemoAccount custodian = demoAccount(Role.EVIDENCE_CUSTODIAN);
+            DemoAccount investigator = demoAccount(Role.INVESTIGATOR);
+
+            composition.authentication().signIn(
+                    custodian.username(), custodian.password().toCharArray());
+            evidencelogger.service.dto.CaseworkViews.Investigator assignee =
+                    composition.caseworkQueries().listInvestigators().stream()
+                            .filter(candidate -> candidate.username().equals(investigator.username()))
+                            .findFirst()
+                            .orElseThrow();
+            CaseId caseId = composition.caseworkCommands().createCase(
+                    new CaseworkCommands.CreateCase(
+                            "Custodian alternative workflows", assignee.investigatorId()));
+            StorageLocationId locationId = composition.caseworkCommands().addStorageLocation(
+                    new CaseworkCommands.AddStorageLocation("Alternative workflow locker"));
+            EvidenceId rejectedEvidence = composition.caseworkCommands().registerEvidence(
+                    new CaseworkCommands.RegisterEvidence(
+                            caseId, "Rejected workflow item", locationId));
+            EvidenceId reversedEvidence = composition.caseworkCommands().registerEvidence(
+                    new CaseworkCommands.RegisterEvidence(
+                            caseId, "Reversed workflow item", locationId));
+            EvidenceId returnedEvidence = composition.caseworkCommands().registerEvidence(
+                    new CaseworkCommands.RegisterEvidence(
+                            caseId, "Unplanned return item", locationId));
+
+            composition.authentication().signIn(
+                    investigator.username(), investigator.password().toCharArray());
+            CheckoutRequestId rejectedRequest = composition.checkoutCommands().submitRequest(
+                    new CheckoutCommands.SubmitRequest(
+                            rejectedEvidence,
+                            "Request expected to be rejected",
+                            FIXED_CLOCK.instant().plusSeconds(3600)));
+            CheckoutRequestId reversedRequest = composition.checkoutCommands().submitRequest(
+                    new CheckoutCommands.SubmitRequest(
+                            reversedEvidence,
+                            "Request with reversed handoff",
+                            FIXED_CLOCK.instant().plusSeconds(3600)));
+            CheckoutRequestId returnedRequest = composition.checkoutCommands().submitRequest(
+                    new CheckoutCommands.SubmitRequest(
+                            returnedEvidence,
+                            "Request with unplanned return",
+                            FIXED_CLOCK.instant().plusSeconds(3600)));
+
+            composition.authentication().signIn(
+                    custodian.username(), custodian.password().toCharArray());
+            composition.checkoutCommands().rejectRequest(
+                    new CheckoutCommands.RejectRequest(rejectedRequest));
+            composition.checkoutCommands().approveRequest(
+                    new CheckoutCommands.ApproveRequest(reversedRequest));
+            evidencelogger.domain.HandoffId reversedHandoff =
+                    composition.checkoutCommands().recordHandoff(
+                            new CheckoutCommands.RecordHandoff(reversedRequest));
+            composition.checkoutCommands().reverseHandoff(
+                    new CheckoutCommands.ReverseHandoff(
+                            reversedHandoff, "Collection appointment cancelled"));
+            composition.checkoutCommands().approveRequest(
+                    new CheckoutCommands.ApproveRequest(returnedRequest));
+            evidencelogger.domain.HandoffId returnedHandoff =
+                    composition.checkoutCommands().recordHandoff(
+                            new CheckoutCommands.RecordHandoff(returnedRequest));
+
+            composition.authentication().signIn(
+                    investigator.username(), investigator.password().toCharArray());
+            CheckoutId checkoutId = composition.checkoutCommands().acknowledgeCollection(
+                    new CheckoutCommands.AcknowledgeCollection(returnedHandoff));
+
+            composition.authentication().signIn(
+                    custodian.username(), custodian.password().toCharArray());
+            composition.checkoutCommands().inspectUnplannedReturn(
+                    new CheckoutCommands.InspectUnplannedReturn(
+                            checkoutId,
+                            ReturnInspectionOutcome.STORED,
+                            "Item was delivered before return initiation"));
+
+            assertEquals(CheckoutRequestStatus.REJECTED,
+                    composition.checkoutQueries().getRequest(rejectedRequest).status());
+            assertEquals(CheckoutRequestStatus.CANCELLED,
+                    composition.checkoutQueries().getRequest(reversedRequest).status());
+            assertEquals(CheckoutRequestStatus.CONSUMED,
+                    composition.checkoutQueries().getRequest(returnedRequest).status());
+            assertEquals(List.of(
+                    EvidenceCustodyState.IN_STORAGE,
+                    EvidenceCustodyState.IN_STORAGE,
+                    EvidenceCustodyState.IN_STORAGE),
+                    composition.caseworkQueries().searchEvidence("item").stream()
+                            .map(evidencelogger.service.dto.CaseworkViews.Evidence::custodyState)
+                            .toList());
+            List<AuditEventType> eventTypes = composition.historyQueries()
+                    .listEventsForCase(caseId).stream()
+                    .map(evidencelogger.service.dto.HistoryViews.Event::type)
+                    .toList();
+            assertEquals(1, eventTypes.stream()
+                    .filter(type -> type == AuditEventType.REQUEST_REJECTED)
+                    .count());
+            assertEquals(1, eventTypes.stream()
+                    .filter(type -> type == AuditEventType.HANDOFF_REVERSED)
+                    .count());
+            assertEquals(1, eventTypes.stream()
+                    .filter(type -> type == AuditEventType.UNPLANNED_RETURN_INSPECTED)
+                    .count());
+        }
+    }
+
     private static void insertTestAccount(ConnectionFactory connectionFactory)
             throws SQLException, GeneralSecurityException {
         byte[] salt = new byte[16];
@@ -263,6 +450,13 @@ class ApplicationCompositionIntegrationTest {
     private static DemoAccount demoAccount(Role role) throws IOException {
         return readDocumentedDemoAccounts().stream()
                 .filter(account -> account.role() == role)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private static DemoAccount demoAccount(String username) throws IOException {
+        return readDocumentedDemoAccounts().stream()
+                .filter(account -> account.username().equals(username))
                 .findFirst()
                 .orElseThrow();
     }

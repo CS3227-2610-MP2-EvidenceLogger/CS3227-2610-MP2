@@ -101,14 +101,16 @@ class CustodianWorkflowViewTest {
     }
 
     @Test
-    void requestDecisionTextIncludesPurposeAndExpectedReturn() {
-        String text = CustodianWorkflowView.requestText(request(
+    void pendingDecisionWorkItemExposesPurposeToTheLiveTableBinding() {
+        CheckoutViews.Request request = request(
                 CheckoutRequestStatus.PENDING,
                 EvidenceCustodyState.IN_STORAGE,
-                Optional.empty()));
+                Optional.empty());
+        CustodianWorkflowView.WorkItem workItem =
+                CustodianWorkflowView.WorkItem.forRequest(
+                        request, CustodianWorkflowView.WorkflowCategory.PENDING_DECISIONS);
 
-        assertTrue(text.contains("purpose: Review seal"));
-        assertTrue(text.contains("due "));
+        assertEquals("Review seal", workItem.purpose());
     }
 
     @Test

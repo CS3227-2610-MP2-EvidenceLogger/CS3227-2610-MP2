@@ -134,7 +134,7 @@ of these categories:
 - **All active work**: all non-terminal work items.
 
 Select a row to enable only the actions valid for that item. The queue displays the evidence
-reference, case, Investigator, status, and due or collected time.
+reference, case, Investigator, request purpose, status, and due or collected time.
 
 ##### Approve or reject a request
 

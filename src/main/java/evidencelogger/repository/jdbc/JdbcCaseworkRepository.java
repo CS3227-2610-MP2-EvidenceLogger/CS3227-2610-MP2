@@ -299,6 +299,7 @@ public final class JdbcCaseworkRepository implements CaseworkRepository {
                 JOIN storage_location l ON l.id = e.storage_location_id
                 """ + assignmentJoin + """
                  WHERE e.case_id = ?
+                   AND e.custody_state <> 'VOIDED'
                  ORDER BY lower(e.public_reference), e.id
                 """;
         return withConnection(connection -> {

@@ -107,6 +107,9 @@ class CaseworkControllerTest {
         assertEquals(service.evidence,
                 controller.searchEvidence(" voided ", true).value());
         assertEquals(" voided ", service.includingVoidedSearchText);
+        assertEquals(service.caseEvidence,
+                controller.listEvidenceForCase(selectedCase).value());
+        assertEquals(CASE_ID, service.evidenceCaseId);
         assertEquals(service.investigators, controller.listInvestigators().value());
         assertEquals(service.investigators,
                 controller.listAssignments(selectedCase).value());
@@ -170,6 +173,7 @@ class CaseworkControllerTest {
             implements CaseworkCommandService, CaseworkQueryService {
         private List<CaseworkViews.Case> cases = List.of();
         private List<CaseworkViews.Evidence> evidence = List.of();
+        private List<CaseworkViews.Evidence> caseEvidence = List.of();
         private List<CaseworkViews.Investigator> investigators = List.of();
         private List<CaseworkViews.StorageLocation> locations = List.of();
         private RuntimeException failure;
@@ -183,6 +187,7 @@ class CaseworkControllerTest {
         private String evidenceSearchText;
         private String includingVoidedSearchText;
         private CaseId assignmentCaseId;
+        private CaseId evidenceCaseId;
         private int commandCalls;
 
         @Override
@@ -239,7 +244,8 @@ class CaseworkControllerTest {
 
         @Override
         public List<CaseworkViews.Evidence> listEvidenceForCase(CaseId caseId) {
-            return evidence;
+            evidenceCaseId = caseId;
+            return caseEvidence;
         }
 
         public List<CaseworkViews.Evidence> searchEvidenceIncludingVoided(String searchText) {
