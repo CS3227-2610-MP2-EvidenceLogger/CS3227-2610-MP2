@@ -21,7 +21,15 @@
     {
       "src": "DeveloperGuide.md",
       "headings": {
-        "evidencelogger-developer-guide": "EvidenceLogger Developer Guide"
+        "evidencelogger-developer-guide": "EvidenceLogger Developer Guide",
+        "prerequisites": "Prerequisites",
+        "build-and-run": "Build and run",
+        "architecture": "Architecture",
+        "local-data-and-diagnostics": "Local data and diagnostics",
+        "database-and-migrations": "Database and migrations",
+        "testing": "Testing",
+        "ci-and-release-verification": "CI and release verification",
+        "troubleshooting": "Troubleshooting"
       },
       "headingKeywords": {}
     },
