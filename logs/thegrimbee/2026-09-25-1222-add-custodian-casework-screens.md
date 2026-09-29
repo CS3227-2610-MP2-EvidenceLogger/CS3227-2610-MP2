@@ -56,7 +56,7 @@ Manual checks:
 ## Reflection note
 
 ## Verification of summary
-Reviewed by: PENDING
+Reviewed by: Gabriel
 
 ## Unresolved issues
 - The reporting-only review identified COR-001, COR-002, ERR-001, JAVA-001, and DOC-001 in

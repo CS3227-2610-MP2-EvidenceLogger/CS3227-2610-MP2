@@ -42,4 +42,4 @@ the approved project has no TestFX dependency or stable headless UI smoke harnes
 ## Reflection note
 
 ## Verification of summary
-Reviewed by: PENDING
+Reviewed by: Gabriel
