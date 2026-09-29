@@ -29,13 +29,23 @@
         "database-and-migrations": "Database and migrations",
         "testing": "Testing",
         "ci-and-release-verification": "CI and release verification",
+        "automated-results-for-this-checkout": "Automated results for this checkout",
+        "manual-and-unverified-results": "Manual and unverified results",
         "troubleshooting": "Troubleshooting"
       },
       "headingKeywords": {}
     },
     {
       "src": "GabrielReflection.md",
-      "headings": {},
+      "headings": {
+        "gabriel-s-reflection": "Gabriel's Reflection",
+        "1-what-tasks-was-the-agent-customized-to-perform-and-how-did-i-choose-the-skills": "1. What tasks was the agent customized to perform, and how did I choose the skills?",
+        "2-how-did-i-define-a-specific-skill-and-make-sure-it-was-working": "2. How did I define a specific skill and make sure it was working?",
+        "3-what-tasks-did-the-agent-handle-effectively": "3. What tasks did the agent handle effectively?",
+        "4-where-did-the-agent-require-guidance-or-create-additional-work": "4. Where did the agent require guidance or create additional work?",
+        "5-what-would-i-change-next-time-and-what-other-skills-or-tools-would-help": "5. What would I change next time, and what other skills or tools would help?",
+        "6-what-did-i-learn-about-designing-an-effective-single-ai-agent": "6. What did I learn about designing an effective single AI agent?"
+      },
       "headingKeywords": {}
     },
     {
