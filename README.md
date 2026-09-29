@@ -11,6 +11,19 @@ On Windows, start the application from the repository root:
 .\gradlew.bat run
 ```
 
+## Using the JAR file
+
+On Windows and Linux, ensure you have Java 25 installed on your machine. Then run this command at the repository root:
+
+```bash
+java -jar release/EvidenceLogger.jar
+```
+
+On Mac, you may run this command to execute a different JAR file instead:
+```bash
+java -jar release/EvidenceLogger_mac.jar
+```
+
 ## Demo-only accounts
 
 These accounts and passwords are fictional demonstration data. Do not reuse these passwords for
